@@ -7,7 +7,12 @@ import java.util.Optional;
 
 import org.apache.commons.dbcp2.BasicDataSource;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 public class Database {
+
+    private static final Dotenv dotenv = Dotenv.load();
+
     public static final BasicDataSource POOL = connect();
 
     private static BasicDataSource connect() {
@@ -32,10 +37,10 @@ public class Database {
     private static Optional<BasicDataSource> tryConnect() {
         System.out.println("Connecting to database...");
         BasicDataSource POOL = new BasicDataSource();
-        POOL.setUsername(Objects.requireNonNull(System.getenv("PSQL_USER"), "Missing username for database"));
-        POOL.setPassword(Objects.requireNonNull(System.getenv("PSQL_PASS"), "Missing password for database"));
+        POOL.setUsername(Objects.requireNonNull(dotenv.get("PSQL_USER"), "Missing username for database"));
+        POOL.setPassword(Objects.requireNonNull(dotenv.get("PSQL_PASS"), "Missing password for database"));
         POOL.setDriverClassName("org.postgresql.Driver");
-        POOL.setUrl(Objects.requireNonNull(System.getenv("PSQL_URL"), "Missing url for database"));
+        POOL.setUrl(Objects.requireNonNull(dotenv.get("PSQL_URL"), "Missing url for database"));
         POOL.setInitialSize(1);
         POOL.setMaxTotal(75);
         POOL.setAutoCommitOnReturn(true);

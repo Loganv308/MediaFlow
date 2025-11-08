@@ -4,10 +4,15 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 import com.loganv308.Logger;
 
 public class FileScanner {
-    private static final String MEDIAMOUNT = "/mnt/NASMedia";
+
+    private static final Dotenv dotenv = Dotenv.load();
+
+    private static final String MEDIAMOUNT = dotenv.get("MEDIA_MOUNT");
     
     private static List<File> mediaFiles = new ArrayList<>();
 
@@ -17,5 +22,9 @@ public class FileScanner {
         if(file.isFile()) {
             System.out.println("Media File Found: " + file.getAbsolutePath());
         }
+    }
+
+    public static void checkEncoding() {
+
     }
 }
