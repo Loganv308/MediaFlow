@@ -10,32 +10,49 @@ public class Encoder {
     // private Database db;
     // private FileScanner files;
 
-    public String reEncode(String filePath) {
+    private volatile Status status = Status.IDLE;
+
+    public Status reEncode(String filePath) {
         String out = "";
 
+        Process p = null;
+
+        int exitCode = 0;
+
+        status = Status.RUNNING;
+
         try {
-            Process p;
+
+            System.out.println("Starting re-encode of: " + filePath + "\n");
 
             // Gets the encoding of whichever file you direct it to. 
             ProcessBuilder pb = new ProcessBuilder(
-                "ffprobe",
-                "-v", "error",
-                "-select_streams", "v:0",
-                "-show_entries", "stream=codec_name",
-                "-of", "default=noprint_wrappers=1:nokey=1",
+                "ffmpeg", 
+                "-i", filePath, 
+                "-c:v", "libx265",
+                "-vtag", "hvc1",
+                "-vf", "scale=1920:1080", 
+                "-crf 20", "-c:a copy", 
                 filePath
             );
-            
+
             // Assigned the processbuilder starting method to Process p;
+            System.out.println("Process Started..." + "\n");
             p = pb.start();
+
+            exitCode = p.waitFor();
 
             // Captures the output stream and reads it to the output String variable
             out = new String(p.getInputStream().readAllBytes());
+            System.out.println("Output: " + out + "\n");
+            out.trim();
 
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             System.out.println(e);
+            return Status.FAILED;
         }
-        return out.trim();
+
+        return exitCode == 0 ? Status.COMPLETED : Status.FAILED;
     }
 
     // This function will get the media encoding of a specified path
