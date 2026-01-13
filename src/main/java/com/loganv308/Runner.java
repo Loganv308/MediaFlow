@@ -1,22 +1,21 @@
 package com.loganv308;
 
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-
-import io.github.cdimascio.dotenv.Dotenv;
+// import io.github.cdimascio.dotenv.Dotenv;
+import java.util.Map;
 
 public class Runner {
 
     // Grabs environment variables from .env file
-    private static final Dotenv dotenv = Dotenv.load();
+    // private static final Dotenv dotenv = Dotenv.load();
 
     // Media mount key in the .env file
-    private static final String mediaMount = dotenv.get("MEDIA_MOUNT");
+    // private static final String mediaMount = dotenv.get("MEDIA_MOUNT");
 
-    private static Encoder enc = new Encoder();
+    // private static Encoder enc = new Encoder();
 
     private static FileScanner fs = new FileScanner();
 
@@ -38,33 +37,22 @@ public class Runner {
 
     public static void testreEncode() {
         try {
-            // Get Media Encoding
-            String p = "/mnt/NASMedia/movies/Flow (2024)/Flow 2024 2160p AMZN WEB DL DDP5 1 H 265 FLUX.mkv";
+            Path nasRoot = Paths.get("/mnt/NASMedia/movies");
 
-            Path sourcePath = Paths.get(p);
-            
-            String fileName = sourcePath.getFileName().toString();
+            Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
 
-            String o = "/tmp/nascopiestest/";
-
-            Path newMediaPath = Paths.get(o, fileName);
-
-            System.out.println("Media encoding String: " + p);
-            System.out.println("Temp Directory String: " + o);
-            System.out.println("SourcePath: " + sourcePath);
-            System.out.println("Media File name: " + fileName);
-
-            boolean exists = Files.exists(newMediaPath);
-
-            System.out.println("New media path: " + newMediaPath);
-
-            if(exists) {
-                System.out.println("File already exists, started reencode...");
-                enc.reEncode(newMediaPath.toString());
-            } else {
-                fs.copyOffNAS(p, o);
-                enc.reEncode(newMediaPath.toString());
+            if (nasIndex.isEmpty()) {
+                System.out.println("No media found.");
+                return;
             }
+
+            List<Path> needsReencode = nasIndex.values().stream()
+                .filter(Encoder::isWrongEncoding)
+                .filter(Encoder::isAbove1080p)
+                .toList();
+
+            System.out.println("Files needing re-encode: " + needsReencode.size());
+            System.out.println(needsReencode);
 
         } catch (Exception e) {
             System.out.println(e);
