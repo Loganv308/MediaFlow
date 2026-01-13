@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -21,14 +21,18 @@ public class FileScanner {
     private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov" };
 
     // This method gets all media from the specified directory. We get all movies in this case. 
-    public List<Path> getAllMedia(String dirPath) {
+    public Map<String, Path> indexAllMedia(String dirPath) {
         try {
             return Files.walk(Paths.get(dirPath))
-                    .filter(FileScanner::isMediaFile) // check each extension
-                    .collect(Collectors.toList());
+                    .filter(FileScanner::isMediaFile)
+                    .collect(Collectors.toMap(
+                            path -> path.getFileName().toString(),
+                            path -> path,
+                            (a, b) -> a // handle duplicate filenames safely
+                    ));
         } catch (IOException e) {
             e.printStackTrace();
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
     }
 
@@ -49,6 +53,7 @@ public class FileScanner {
 
     public Status copyOffNAS(String path, String destination) {
         status = Status.RUNNING;
+
         try {
             System.out.println("Starting copy from: " + Paths.get(path) + " to: " + Paths.get(destination) + "...");
 
@@ -66,7 +71,7 @@ public class FileScanner {
         }
     }
 
-    public Status cleanupDirectory() {
+    public Status cleanupDirectory(Map<String, Path> nasIndex) {
         Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
 
         // Takes in a Stream of paths from the temp media directory. Filters if it's a media file or not using the isMediaFile() method. 
@@ -74,13 +79,30 @@ public class FileScanner {
         try (Stream<Path> files = Files.list(tempMediaDir)) {
             files
                 .filter(FileScanner::isMediaFile)
-                .forEach(path -> {
+                .forEach(tempPath -> {
                     try {
-                        Files.delete(path);
-                        System.out.println("Deleted: " + path);
+                        Path nasPath = nasIndex.get(tempPath.getFileName().toString());
+
+                        System.out.println("NASIndex: " +nasIndex);
+
+                        if (nasPath == null) {
+                            System.err.println("No NAS match for: " + tempPath);
+                            return;
+                        }
+
+                        long expected = Files.size(nasPath);
+                        long actual = Files.size(tempPath);
+
+                        System.out.println(expected + " | " + actual);
+
+                        if (expected != actual) {
+                            // Files.delete(tempPath);
+                            System.out.println("Deleted (incomplete copy): " + tempPath);
+                        }
                     } catch (IOException e) {
-                        System.err.println("Failed to delete: " + path);
+                        System.err.println("Failed to process: " + e);
                     }
+                    
                 });
         } catch (IOException e) {
             e.printStackTrace();
@@ -88,5 +110,24 @@ public class FileScanner {
         }
 
         return Status.COMPLETED;
+    }
+
+    public long getFileSize(String file) {
+
+        long sizeOfFile = file.length();
+
+        return sizeOfFile;
+    }
+
+    public long getExpectedFileSize(Path nasPath) throws IOException {
+        return Files.size(nasPath);
+    }
+
+    public String getMediaFileName(String file) {
+        Path sourcePath = Paths.get(file);
+
+        String fileName = sourcePath.getFileName().toString();
+
+        return fileName;
     }
 }

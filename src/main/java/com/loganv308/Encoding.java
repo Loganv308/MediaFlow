@@ -7,5 +7,10 @@ public enum Encoding {
     VC1,
     AV1,
     MPEG2VIDEO,
-    UNKNOWN
+    UNKNOWN;
+
+    Encoding fromEncoding(String out) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'fromEncoding'");
+    }
 }

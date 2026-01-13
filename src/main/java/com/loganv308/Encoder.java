@@ -1,6 +1,7 @@
 package com.loganv308;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 //import com.loganv308.Database;
 //import com.loganv308.FileScanner;
@@ -56,13 +57,8 @@ public class Encoder {
     }
 
     // This function will get the media encoding of a specified path
-    public String getMediaEncoding(String filePath) {
-        // Initial output String initialized beforehand
-        String out = "";
-
+    public static Encoding getMediaEncoding(Path filePath) {
         try {
-            Process p;
-            
             // Gets the encoding of whichever file you direct it to. 
             ProcessBuilder pb = new ProcessBuilder(
                 "ffprobe",
@@ -70,45 +66,78 @@ public class Encoder {
                 "-select_streams", "v:0",
                 "-show_entries", "stream=codec_name",
                 "-of", "default=noprint_wrappers=1:nokey=1",
-                filePath
+                filePath.toString()
             );
 
+            // The comment `// Assigned the processbuilder starting method to Process p;` is explaining
+            // that the `ProcessBuilder` object is being used to start a new process, and the reference
+            // to this process is being assigned to the `p` variable of type `Process`. This means that
+            // the `start()` method of the `ProcessBuilder` is being called to initiate the execution
+            // of the specified command or program, and the resulting process object is stored in the
+            // `p` variable for further interaction or monitoring.
             // Assigned the processbuilder starting method to Process p;
-            p = pb.start();
+            Process p = pb.start();
 
             // Captures the output stream and reads it to the output String variable
-            out = new String(p.getInputStream().readAllBytes());
+            String out = new String(p.getInputStream().readAllBytes());
 
-        } catch (IOException e) {
-            System.out.println(e);
-        }
-        // Returns output
-        return out.trim();
-    }
+            p.waitFor();
 
-    public static Encoding fromEncoding(String encodingName) {
-        try {
-            switch (encodingName.toLowerCase()) {
-                case "h264":
-                    return Encoding.H264;
-                case "h265":
-                    return Encoding.H265;
-                case "hevc":
-                    return Encoding.HEVC;
-                case "vc1":
-                    return Encoding.VC1;
-                case "av1":
-                    return Encoding.AV1;
-                case "mpeg2video":
-                    return Encoding.MPEG2VIDEO;
-                default:
-                    return Encoding.UNKNOWN;
-            }
+            return fromEncoding(out);
+
         } catch (Exception e) {
-            // Log Exception 
-            System.out.println(e);
+            System.err.println("Failed to probe encoding: " + filePath);
             return Encoding.UNKNOWN;
         }
-        
+    }
+
+    public static boolean isAbove1080p(Path mediaFile) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "ffprobe",
+                    "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=height",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    mediaFile.toString()
+            );
+
+            Process p = pb.start();
+
+            String output = new String(p.getInputStream().readAllBytes()).trim();
+            p.waitFor();
+
+            if (output.isEmpty()) {
+                return false;
+            }
+
+            int height = Integer.parseInt(output);
+
+            return height > 1080;
+
+        } catch (Exception e) {
+            System.err.println("Failed to probe resolution: " + mediaFile);
+            return false; // fail safe: don't re-encode on error
+        }
+    }
+
+    // Returns the proper encoding type. 
+    public static Encoding fromEncoding(String encodingName) {
+        return switch (encodingName.toLowerCase()) {
+            case "h264" -> Encoding.H264;
+            case "h265" -> Encoding.H265;
+            case "hevc" -> Encoding.HEVC;
+            case "vc1" -> Encoding.VC1;
+            case "av1" -> Encoding.AV1;
+            case "mpeg2video" -> Encoding.MPEG2VIDEO;
+            default -> Encoding.UNKNOWN;
+        };
+    }
+
+    public static boolean isWrongEncoding(Path mediaFile) {
+        Encoding encoding = getMediaEncoding(mediaFile);
+
+        // example: only allow HEVC
+        return encoding != Encoding.HEVC;
     }
 }
