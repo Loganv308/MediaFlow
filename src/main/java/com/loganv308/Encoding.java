@@ -8,9 +8,4 @@ public enum Encoding {
     AV1,
     MPEG2VIDEO,
     UNKNOWN;
-
-    Encoding fromEncoding(String out) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'fromEncoding'");
-    }
 }

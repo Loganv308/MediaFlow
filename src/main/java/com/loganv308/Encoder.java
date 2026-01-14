@@ -69,12 +69,6 @@ public class Encoder {
                 filePath.toString()
             );
 
-            // The comment `// Assigned the processbuilder starting method to Process p;` is explaining
-            // that the `ProcessBuilder` object is being used to start a new process, and the reference
-            // to this process is being assigned to the `p` variable of type `Process`. This means that
-            // the `start()` method of the `ProcessBuilder` is being called to initiate the execution
-            // of the specified command or program, and the resulting process object is stored in the
-            // `p` variable for further interaction or monitoring.
             // Assigned the processbuilder starting method to Process p;
             Process p = pb.start();
 

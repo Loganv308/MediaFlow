@@ -1,6 +1,5 @@
 package com.loganv308;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -37,6 +36,7 @@ public class Runner {
 
     public static void testreEncode() {
         try {
+            System.out.println("Getting media...");
             Path nasRoot = Paths.get("/mnt/NASMedia/movies");
 
             Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
@@ -51,8 +51,10 @@ public class Runner {
                 .filter(Encoder::isAbove1080p)
                 .toList();
 
-            System.out.println("Files needing re-encode: " + needsReencode.size());
-            System.out.println(needsReencode);
+            System.out.println("Files needing re-encode: ");
+            for(Path i : needsReencode) {
+                System.out.println(i + "\n");
+            }
 
         } catch (Exception e) {
             System.out.println(e);
