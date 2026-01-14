@@ -55,6 +55,9 @@ public class Runner {
             for(Path i : needsReencode) {
                 System.out.println(i + "\n");
             }
+        
+            // TODO: Implement while loop functionality.
+            // TODO: Utilize outside classes to scan NAS for new and previous media, encode once found if needed. 
 
         } catch (Exception e) {
             System.out.println(e);
