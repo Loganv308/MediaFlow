@@ -11,16 +11,12 @@ public class Encoder {
     // private Database db;
     // private FileScanner files;
 
-    private volatile Status status = Status.IDLE;
-
-    public Status reEncode(String filePath) {
+    public Status reEncode(Path filePath) {
         String out = "";
 
         Process p = null;
 
         int exitCode = 0;
-
-        status = Status.RUNNING;
 
         try {
 
@@ -29,12 +25,12 @@ public class Encoder {
             // Gets the encoding of whichever file you direct it to. 
             ProcessBuilder pb = new ProcessBuilder(
                 "ffmpeg", 
-                "-i", filePath, 
+                "-i", filePath.toString(), 
                 "-c:v", "libx265",
                 "-vtag", "hvc1",
                 "-vf", "scale=1920:1080", 
                 "-crf 20", "-c:a copy", 
-                filePath
+                filePath.toString() 
             );
 
             // Assigned the processbuilder starting method to Process p;
@@ -49,7 +45,7 @@ public class Encoder {
             out.trim();
 
         } catch (IOException | InterruptedException e) {
-            System.out.println(e);
+            System.out.println(e.getMessage());
             return Status.FAILED;
         }
 

@@ -35,32 +35,35 @@ public class Runner {
     }
 
     public static void testreEncode() {
-        try {
-            System.out.println("Getting media...");
-            Path nasRoot = Paths.get("/mnt/NASMedia/movies");
 
-            Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
+        Encoder enc = new Encoder();
 
-            if (nasIndex.isEmpty()) {
-                System.out.println("No media found.");
-                return;
-            }
+        while(true) {
+            try {
+                Path nasRoot = Paths.get("/mnt/NASMedia/movies");
 
-            List<Path> needsReencode = nasIndex.values().stream()
-                .filter(Encoder::isWrongEncoding)
-                .filter(Encoder::isAbove1080p)
-                .toList();
+                Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
 
-            System.out.println("Files needing re-encode: ");
-            for(Path i : needsReencode) {
-                System.out.println(i + "\n");
-            }
-        
-            // TODO: Implement while loop functionality.
-            // TODO: Utilize outside classes to scan NAS for new and previous media, encode once found if needed. 
+                if (nasIndex.isEmpty()) {
+                    System.out.println("No media found, moving on...");
+                    return;
+                }
+
+                List<Path> needsReencode = nasIndex.values().stream()
+                    .filter(Encoder::isWrongEncoding)
+                    .filter(Encoder::isAbove1080p)
+                    .toList();
+
+                for (Path p : needsReencode) {
+                    System.out.println("Re-encoding needed for: " + p.toString());
+                    enc.reEncode(p);
+                }
+                
+                // TODO: Utilize outside classes to scan NAS for new and previous media, encode once found if needed. 
 
         } catch (Exception e) {
             System.out.println(e);
+        }
         }
     }
 }
