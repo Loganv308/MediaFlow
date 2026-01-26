@@ -5,10 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.loganv308.enums.Status;
 
 // Test File path "/mnt/NASMedia/movies/Flow (2024)/Flow 2024 2160p AMZN WEB DL DDP5 1 H 265 FLUX.mkv"
 public class FileScanner {
@@ -19,6 +23,8 @@ public class FileScanner {
     private volatile Status status = Status.IDLE;
 
     private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov" };
+
+    private static final Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
 
     // This method gets all media from the specified directory. We get all movies in this case.
     // Mapping will show up as follows:
@@ -37,6 +43,22 @@ public class FileScanner {
             e.printStackTrace();
             return Collections.emptyMap();
         }
+    }
+
+    public List<Path> getTempPaths() {
+        
+        List<Path> tempFiles = new ArrayList<Path>();
+
+        try(Stream<Path> files = Files.list(tempMediaDir)) {
+            files
+                .forEach (s -> {
+                    tempFiles.add(s);
+                });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return tempFiles;
     }
 
     private static boolean isMediaFile(Path path) {
@@ -78,8 +100,6 @@ public class FileScanner {
     public Status cleanupDirectory(Map<String, Path> nasIndex) {        
         // Changes status of method to "RUNNING".
         status = Status.RUNNING;
-
-        Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
 
         // List of files in the tempMediaDir
         try (Stream<Path> files = Files.list(tempMediaDir)) {

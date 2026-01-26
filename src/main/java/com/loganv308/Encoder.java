@@ -3,15 +3,12 @@ package com.loganv308;
 import java.io.IOException;
 import java.nio.file.Path;
 
-//import com.loganv308.Database;
-//import com.loganv308.FileScanner;
+import com.loganv308.enums.Encoding;
+import com.loganv308.enums.Status;
 
 public class Encoder {
 
-    // private Database db;
-    // private FileScanner files;
-
-    private volatile Status status = Status.IDLE;
+    private Status status = Status.IDLE;
 
     public Status reEncode(String filePath) {
         String out = "";

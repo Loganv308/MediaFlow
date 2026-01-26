@@ -14,53 +14,50 @@ public class Runner {
     // Media mount key in the .env file
     // private static final String mediaMount = dotenv.get("MEDIA_MOUNT");
 
-    // private static Encoder enc = new Encoder();
+    private static Encoder enc = new Encoder();
 
     private static FileScanner fs = new FileScanner();
 
     public static void main(String[] args) {
-        
-        // List<String> mediaFiles = fs.getAllMedia(mediaMount);
+        while(true) {
+            try {
+                String tempDir = "/tmp/nascopiestest/";
 
-        // for (String file : mediaFiles){
-        //     String p = enc.getMediaEncoding(file);
+                System.out.println("Getting media...");
 
-        //     // ENUM for every Encoding type present
-        //     Encoding encodeType = Encoder.fromEncoding(p);
-            
-        //     System.out.println(encodeType);
-        // }
-        testreEncode();
-            
-    }
+                Path nasRoot = Paths.get("/mnt/NASMedia/movies");
 
-    public static void testreEncode() {
-        try {
-            System.out.println("Getting media...");
-            Path nasRoot = Paths.get("/mnt/NASMedia/movies");
+                Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
 
-            Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
+                if (nasIndex.isEmpty()) {
+                    System.out.println("No media found.");
+                    return;
+                }
 
-            if (nasIndex.isEmpty()) {
-                System.out.println("No media found.");
-                return;
+                List<Path> needsReencode = nasIndex.values().stream()
+                    .filter(Encoder::isWrongEncoding)
+                    .filter(Encoder::isAbove1080p)
+                    .toList();
+
+                System.out.println("Files needing re-encode: ");
+                
+                for(Path i : needsReencode) {
+                    fs.copyOffNAS(i.toString(), tempDir);
+                    System.out.println("Copy complete for: " + i.toString());
+                }
+
+                List<Path> tempDirMediaList = fs.getTempPaths();
+
+                for(Path p : tempDirMediaList) {
+                    System.out.println("Re-encoding for " + p.toString() + " in progress...");
+                    enc.reEncode(p.toString());
+                }
+                
+                // TODO: Utilize outside classes to scan NAS for new and previous media, encode once found if needed. 
+
+            } catch (Exception e) {
+                System.out.println(e);
             }
-
-            List<Path> needsReencode = nasIndex.values().stream()
-                .filter(Encoder::isWrongEncoding)
-                .filter(Encoder::isAbove1080p)
-                .toList();
-
-            System.out.println("Files needing re-encode: ");
-            for(Path i : needsReencode) {
-                System.out.println(i + "\n");
-            }
-        
-            // TODO: Implement while loop functionality.
-            // TODO: Utilize outside classes to scan NAS for new and previous media, encode once found if needed. 
-
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+        }   
     }
 }

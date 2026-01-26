@@ -1,4 +1,4 @@
-package com.loganv308;
+package com.loganv308.enums;
 
 public enum Status {
     IDLE,
