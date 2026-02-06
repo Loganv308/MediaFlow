@@ -10,6 +10,10 @@ public class Encoder {
 
     private Status status = Status.IDLE;
 
+    private utils ut = new utils();
+
+    private ProcessBuilder pb = null;
+
     public Status reEncode(String filePath) {
         String out = "";
 
@@ -23,19 +27,33 @@ public class Encoder {
 
             System.out.println("Starting re-encode of: " + filePath + "\n");
 
-            // Gets the encoding of whichever file you direct it to. 
-            ProcessBuilder pb = new ProcessBuilder(
-                "ffmpeg", 
-                "-i", filePath, 
-                "-c:v", "libx265",
-                "-vtag", "hvc1",
-                "-vf", "scale=1920:1080", 
-                "-crf 20", "-c:a copy", 
-                filePath
-            );
-
+            if(ut.getOS().contains("win")) {
+                filePath = filePath.replace("\\", "/");
+                pb = new ProcessBuilder(
+                    ".\\ffmpeg\\ffmpeg.exe", 
+                    "-i", filePath, 
+                    "-c:v", "libx265",
+                    "-vtag", "hvc1",
+                    "-vf", "scale=1920:1080", 
+                    "-crf 20", "-c:a copy", 
+                    filePath
+                );
+            } else {
+                // Gets the encoding of whichever file you direct it to. 
+                pb = new ProcessBuilder(
+                    "ffmpeg", 
+                    "-i", filePath, 
+                    "-c:v", "libx265",
+                    "-vtag", "hvc1",
+                    "-vf", "scale=1920:1080", 
+                    "-crf 20", "-c:a copy", 
+                    filePath
+                );
+            }
+            
             // Assigned the processbuilder starting method to Process p;
             System.out.println("Process Started..." + "\n");
+            
             p = pb.start();
 
             exitCode = p.waitFor();
@@ -54,18 +72,33 @@ public class Encoder {
     }
 
     // This function will get the media encoding of a specified path
-    public static Encoding getMediaEncoding(Path filePath) {
+    public Encoding getMediaEncoding(Path filePath) {
         try {
-            // Gets the encoding of whichever file you direct it to. 
-            ProcessBuilder pb = new ProcessBuilder(
-                "ffprobe",
-                "-v", "error",
-                "-select_streams", "v:0",
-                "-show_entries", "stream=codec_name",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                filePath.toString()
-            );
+            if(ut.getOS().contains("win")) {
+                filePath = Path.of(filePath.toString().replace("\\", "/"));
 
+                // Gets the encoding of whichever file you direct it to. 
+                pb = new ProcessBuilder(
+                    ".\\ffmpeg\\ffprobe.exe",
+                    "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    filePath.toString()
+                );
+
+            } else {
+                // Gets the encoding of whichever file you direct it to. 
+                pb = new ProcessBuilder(
+                    "ffprobe",
+                    "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=codec_name",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    filePath.toString()
+                );
+            }
+            
             // Assigned the processbuilder starting method to Process p;
             Process p = pb.start();
 
@@ -82,16 +115,27 @@ public class Encoder {
         }
     }
 
-    public static boolean isAbove1080p(Path mediaFile) {
+    public boolean isAbove1080p(Path mediaFile) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(
+            if(ut.getOS().contains("win")) {
+                pb = new ProcessBuilder(
+                    ".\\ffmpeg\\ffprobe",
+                    "-v", "error",
+                    "-select_streams", "v:0",
+                    "-show_entries", "stream=height",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    mediaFile.toString()
+                );
+            } else {
+                pb = new ProcessBuilder(
                     "ffprobe",
                     "-v", "error",
                     "-select_streams", "v:0",
                     "-show_entries", "stream=height",
                     "-of", "default=noprint_wrappers=1:nokey=1",
                     mediaFile.toString()
-            );
+                );
+            }
 
             Process p = pb.start();
 
@@ -125,7 +169,7 @@ public class Encoder {
         };
     }
 
-    public static boolean isWrongEncoding(Path mediaFile) {
+    public boolean isWrongEncoding(Path mediaFile) {
         Encoding encoding = getMediaEncoding(mediaFile);
 
         // example: only allow HEVC

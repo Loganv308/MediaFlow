@@ -66,7 +66,7 @@ public class Runner extends Thread {
 
                 Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot.toString());
 
-                System.out.println(nasIndex);
+                System.out.println(nasIndex.size());
 
                 if (nasIndex.isEmpty()) {
                     System.out.println("No media found, retrying in 10 minutes...");
@@ -80,8 +80,8 @@ public class Runner extends Thread {
 
                 // Filters the index for files needing re-encoding
                 List<Path> needsReencode = nasIndex.values().stream()
-                    .filter(Encoder::isWrongEncoding)
-                    .filter(Encoder::isAbove1080p)
+                    .filter(enc::isWrongEncoding)
+                    .filter(enc::isAbove1080p)
                     .toList();
 
                 // Logs number of files needing re-encode
@@ -98,11 +98,9 @@ public class Runner extends Thread {
                 List<Path> tempDirMediaList = fs.getTempPaths();
 
                 // Cleans up temp directory
-                // for(Path p : tempDirMediaList) {
-
-                // }
-
-
+                for(Path p : tempDirMediaList) {
+                    System.out.println("Deleting temp file: " + p.toString());
+                }
 
             } catch (Exception e) {
                 System.out.println(e);
