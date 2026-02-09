@@ -1,20 +1,21 @@
 package com.loganv308;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.loganv308.enums.Status;
 
-// Test File path "/mnt/NASMedia/movies/Flow (2024)/Flow 2024 2160p AMZN WEB DL DDP5 1 H 265 FLUX.mkv"
 public class FileScanner {
 
     // Logger instance
@@ -30,20 +31,53 @@ public class FileScanner {
     // Mapping will show up as follows:
     // - Map <FileName>, <pathToFile>
     // This is later used in the cleanupDirectory() method. 
-    public Map<String, Path> indexAllMedia(String dirPath) {
-        try {
-            return Files.walk(Paths.get(dirPath))
-                    .filter(FileScanner::isMediaFile)
-                    .collect(Collectors.toMap(
-                            path -> path.getFileName().toString(),
-                            path -> path,
-                            (a, b) -> a // handle duplicate filenames safely
-                    ));
-        } catch (IOException e) {
-            e.printStackTrace();
-            return Collections.emptyMap();
+    public Map<String, Path> indexAllMedia(Path dirPath) {
+
+        Map<String, Path> index = new HashMap<>();
+
+        // Initializes an ArrayDeque
+        Deque<Path> stack = new ArrayDeque<>();
+
+        // Push the directory paths to the stack
+        stack.push(dirPath);
+        
+        // While the stack does not contain file paths.
+        while(!stack.isEmpty()) {
+            
+            // The dir variable equals stack.pop() and removes the most recently added path from the stack.
+            // Will always process the deepest directory first, then go up from there. 
+            // Equal to Path dir = stack.removeFirst();
+            Path dir = stack.pop();
+
+            // Opens directory listing for dir variable. Returns DirectoryStream that lazily iterates entries.
+            try(DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+                // Iterates over each entry in the directory, each "p" is either a file or directory.
+                for(Path p : stream) {
+                    // If "p" is a directory...
+                    if(Files.isDirectory(p)) {
+                        // It will add the sub directory to the stack. Will be scheduled to process later.
+                        stack.push(p);
+                    // Else, if the file is a media file...
+                    } else if (FileScanner.isMediaFile(p)) {
+                        // Looks up the filename in the "index" map, using the filename as a key.
+                        index.putIfAbsent(p.getFileName().toString(), p);
+                        
+                        // Same thing as the following code:
+                        
+                        //if (!index.containsKey(key)) {
+                            //index.put(key, p);
+                        //}
+                    }
+                }
+            // Standard error handling for IOException (File missing)
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-    }
+        // Returns the index map
+        return index;
+    } 
+    
 
     public List<Path> getTempPaths() {
         
