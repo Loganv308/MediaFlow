@@ -78,20 +78,17 @@ public class Runner extends Thread {
                     return;
                 }
 
-                // Filters the index for files needing re-encoding
-                List<Path> needsReencode = nasIndex.values().stream()
-                    .filter(enc::isWrongEncoding)
-                    .toList();
+                System.out.println(nasIndex);
 
-                // Logs number of files needing re-encode
-                System.out.println("Files needing re-encode: " + needsReencode.size());
+                // // Logs number of files needing re-encode
+                // System.out.println("Files needing re-encode: " + needsReencode);
                 
-                for(Path i : needsReencode) {
-                    fs.copyOffNAS(i.toString(), tempDir);
-                    System.out.println("Copy complete for: " + i.toString());
-                    System.out.println("Re-encoding for " + i.toString() + " in progress...");
-                    enc.reEncode(i.toString());
-                }
+                // for(Path i : needsReencode) {
+                //     fs.copyOffNAS(i.toString(), tempDir);
+                //     System.out.println("Copy complete for: " + i.toString());
+                //     System.out.println("Re-encoding for " + i.toString() + " in progress...");
+                //     enc.reEncode(i.toString());
+                // }
 
                 // Gets list of files in temp directory
                 List<Path> tempDirMediaList = fs.getTempPaths();

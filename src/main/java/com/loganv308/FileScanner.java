@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import com.loganv308.enums.Encoding;
 import com.loganv308.enums.Status;
 
 public class FileScanner {
@@ -27,12 +28,15 @@ public class FileScanner {
 
     private static final Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
 
+    private Encoding encoding = Encoding.UNKNOWN;
+
     // This method gets all media from the specified directory. We get all movies in this case.
     // Mapping will show up as follows:
     // - Map <FileName>, <pathToFile>
     // This is later used in the cleanupDirectory() method. 
     public Map<String, Path> indexAllMedia(Path dirPath) {
 
+        // Initial map to append results too
         Map<String, Path> index = new HashMap<>();
 
         // Initializes an ArrayDeque
@@ -40,6 +44,8 @@ public class FileScanner {
 
         // Push the directory paths to the stack
         stack.push(dirPath);
+
+        System.out.println(stack);
         
         // While the stack does not contain file paths.
         while(!stack.isEmpty()) {
@@ -48,6 +54,7 @@ public class FileScanner {
             // Will always process the deepest directory first, then go up from there. 
             // Equal to Path dir = stack.removeFirst();
             Path dir = stack.pop();
+            System.out.println("Processing directory: " + dir);
 
             // Opens directory listing for dir variable. Returns DirectoryStream that lazily iterates entries.
             try(DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
@@ -55,25 +62,34 @@ public class FileScanner {
                 for(Path p : stream) {
                     // If "p" is a directory...
                     if(Files.isDirectory(p)) {
-                        // It will add the sub directory to the stack. Will be scheduled to process later.
+                        System.out.println("Found subdirectory: " + p);
+                        // It will add the directory to the stack. (Y:\movies\movieTitle) 
                         stack.push(p);
                     // Else, if the file is a media file...
                     } else if (FileScanner.isMediaFile(p)) {
-                        // Looks up the filename in the "index" map, using the filename as a key.
-                        index.putIfAbsent(p.getFileName().toString(), p);
-                        
-                        // Same thing as the following code:
-                        
-                        //if (!index.containsKey(key)) {
-                            //index.put(key, p);
-                        //}
+
+                        System.out.println(Encoder.getMediaEncoding(p) + "\n");
+                        if(Encoder.getMediaEncoding(p) == Encoding.HEVC) {
+                            
+                            System.out.println(p + " is HEVC.");
+                        } else {
+                            System.out.println(p + "is NOT HVEC, added to re-encode list.");
+                             // Looks up the filename in the "index" map, using the filename as a key.
+                            index.putIfAbsent(p.getFileName().toString(), p);
+
+                            // Same thing as the following code:                        
+                            //if (!index.containsKey(key)) {
+                                //index.put(key, p);
+                            //}
+                        }
                     }
                 }
             // Standard error handling for IOException (File missing)
             } catch (IOException e) {
-                e.printStackTrace();
+                System.err.println("Failed to read directory: " + dir + " -> " + e.getMessage());
             }
         }
+        System.out.println("Indexing complete. Total media files: " + index.size());
         // Returns the index map
         return index;
     } 

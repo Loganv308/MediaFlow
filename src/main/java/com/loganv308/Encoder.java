@@ -10,9 +10,9 @@ public class Encoder {
 
     private Status status = Status.IDLE;
 
-    private utils ut = new utils();
+    private static utils ut = new utils();
 
-    private ProcessBuilder pb = null;
+    private static ProcessBuilder pb = null;
 
     public Status reEncode(String filePath) {
         String out = "";
@@ -72,7 +72,7 @@ public class Encoder {
     }
 
     // This function will get the media encoding of a specified path
-    public Encoding getMediaEncoding(Path filePath) {
+    public static Encoding getMediaEncoding(Path filePath) {
         try {
             if(ut.getOS().contains("win")) {
                 filePath = Path.of(filePath.toString().replace("\\", "/"));
@@ -169,10 +169,12 @@ public class Encoder {
         };
     }
 
-    public boolean isWrongEncoding(Path mediaFile) {
-        Encoding encoding = getMediaEncoding(mediaFile);
+    // public static Encoding isWrongEncoding(Path mediaFile) {
+    //     Encoding encoding = getMediaEncoding(mediaFile);
 
-        // example: only allow HEVC
-        return encoding != Encoding.HEVC;
-    }
+    //     System.out.println("Encoding: " + encoding);
+        
+    //     // example: only allow HEVC
+    //     return encoding;
+    // }
 }
