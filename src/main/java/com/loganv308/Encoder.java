@@ -75,7 +75,7 @@ public class Encoder {
     public static Encoding getMediaEncoding(Path filePath) {
         try {
             if(ut.getOS().contains("win")) {
-                filePath = Path.of(filePath.toString().replace("\\", "/"));
+                String formattedFilePath = "\"" + filePath + "\"";
 
                 // Gets the encoding of whichever file you direct it to. 
                 pb = new ProcessBuilder(
@@ -84,7 +84,7 @@ public class Encoder {
                     "-select_streams", "v:0",
                     "-show_entries", "stream=codec_name",
                     "-of", "default=noprint_wrappers=1:nokey=1",
-                    filePath.toString()
+                    formattedFilePath
                 );
 
             } else {
@@ -106,8 +106,9 @@ public class Encoder {
             String out = new String(p.getInputStream().readAllBytes());
 
             p.waitFor();
-
-            return fromEncoding(out);
+            
+            // The .trim() is NECESSARY here, without it, ffprobe outputs "hevc\n" instead of just "hevc"
+            return fromEncoding(out.trim());
 
         } catch (Exception e) {
             System.err.println("Failed to probe encoding: " + filePath);
@@ -158,15 +159,32 @@ public class Encoder {
 
     // Returns the proper encoding type. 
     public static Encoding fromEncoding(String encodingName) {
-        return switch (encodingName.toLowerCase()) {
-            case "h264" -> Encoding.H264;
-            case "h265" -> Encoding.H265;
-            case "hevc" -> Encoding.HEVC;
-            case "vc1" -> Encoding.VC1;
-            case "av1" -> Encoding.AV1;
-            case "mpeg2video" -> Encoding.MPEG2VIDEO;
-            default -> Encoding.UNKNOWN;
+        Encoding resultEncoding;
+        
+        switch (encodingName.toLowerCase()) {
+            case "h264":
+                resultEncoding = Encoding.H264;
+                break;
+            case "h265":
+                resultEncoding = Encoding.H265;
+                break;
+            case "hevc":
+                resultEncoding = Encoding.HEVC;
+                break;
+            case "vc1":
+                resultEncoding = Encoding.VC1;
+                break;
+            case "av1":
+                resultEncoding = Encoding.AV1;
+                break;
+            case "mpeg2video":
+                resultEncoding = Encoding.MPEG2VIDEO;
+                break;
+            default:
+                resultEncoding = Encoding.UNKNOWN;
+                break;
         };
+        return resultEncoding;
     }
 
     // public static Encoding isWrongEncoding(Path mediaFile) {

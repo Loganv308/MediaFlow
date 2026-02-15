@@ -78,10 +78,8 @@ public class Runner extends Thread {
                     return;
                 }
 
-                System.out.println(nasIndex);
-
-                // // Logs number of files needing re-encode
-                // System.out.println("Files needing re-encode: " + needsReencode);
+                // Logs number of files needing re-encode
+                System.out.println("Files needing re-encode: " + nasIndex.size());
                 
                 // for(Path i : needsReencode) {
                 //     fs.copyOffNAS(i.toString(), tempDir);
