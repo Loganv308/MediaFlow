@@ -81,20 +81,38 @@ public class Runner extends Thread {
                 // Logs number of files needing re-encode
                 System.out.println("Files needing re-encode: " + nasIndex.size());
                 
-                // for(Path i : needsReencode) {
-                //     fs.copyOffNAS(i.toString(), tempDir);
-                //     System.out.println("Copy complete for: " + i.toString());
-                //     System.out.println("Re-encoding for " + i.toString() + " in progress...");
-                //     enc.reEncode(i.toString());
-                // }
+                for(Map.Entry<String, Path> i : nasIndex.entrySet()) {
+                    String fileName = i.getKey();
+                    Path nasOriginalPath = i.getValue();
+                    String formattedLocalFile = tempDir + "\\" + fileName;
+                    
+                    // Transfers the file from the NAS.
+                    fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
+
+                    System.out.println("Copy complete for: " + fileName);
+                    System.out.println("Re-encoding starting for " + fileName + " in progress...");
+
+                    // Re-encoding logic for the local file.
+                    // enc.reEncode(formattedLocalFile);
+
+                    System.out.println("Encoding complete for: " + formattedLocalFile);
+                    System.out.println("Copying back to NAS...");
+
+                    // Transfers the file back TO the NAS using the original file. 
+                    fs.nasTransfer(formattedLocalFile, nasOriginalPath.toString());
+
+                    // Will comment this out to cleanup directory, needs some minor re-working. 
+                    // fs.cleanupDirectory(nasIndex);
+                }
 
                 // Gets list of files in temp directory
-                List<Path> tempDirMediaList = fs.getTempPaths();
+                // Refactor this perhaps.
+                // List<Path> tempDirMediaList = fs.getTempPaths();
 
-                // Cleans up temp directory
-                for(Path p : tempDirMediaList) {
-                    System.out.println("Deleting temp file: " + p.toString());
-                }
+                // // Cleans up temp directory
+                // for(Path p : tempDirMediaList) {
+                //     System.out.println("Deleting temp file: " + p.toString());
+                // }
 
             } catch (Exception e) {
                 System.out.println(e);

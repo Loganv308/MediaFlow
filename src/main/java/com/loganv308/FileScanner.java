@@ -15,20 +15,15 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import com.loganv308.enums.Encoding;
-import com.loganv308.enums.Status;
 
 public class FileScanner {
 
     // Logger instance
     // private static Logger logger = new Logger();
 
-    private volatile Status status = Status.IDLE;
-
     private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov" };
 
     private static final Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
-
-    private Encoding encoding = Encoding.UNKNOWN;
 
     // This method gets all media from the specified directory. We get all movies in this case.
     // Mapping will show up as follows:
@@ -91,7 +86,7 @@ public class FileScanner {
         return index;
     } 
     
-
+    // Gets all temporary paths in /tmp directory
     public List<Path> getTempPaths() {
         
         List<Path> tempFiles = new ArrayList<Path>();
@@ -123,8 +118,7 @@ public class FileScanner {
         return false;
     }
 
-    public Status copyOffNAS(String path, String destination) {
-        status = Status.RUNNING;
+    public void nasTransfer(String path, String destination) {
 
         try {
             System.out.println("Starting copy from: " + Paths.get(path) + " to: " + Paths.get(destination) + "...");
@@ -132,21 +126,15 @@ public class FileScanner {
             Files.copy(Paths.get(path), Paths.get(destination), StandardCopyOption.REPLACE_EXISTING);
 
             System.out.println("File successfully copied to Target: " + Paths.get(destination).toString());
-            return Status.COMPLETED;
+
         } catch (IOException e) {
             System.out.println("File not found: " + e);
-            return Status.FAILED;
-        } finally {
-            if(status == Status.RUNNING) {
-                status = Status.COMPLETED;
-            }
+
         }
     }
 
     // Loops through temp directory, grabs all file names, runs it against a map to determine where it is on the NAS. 
-    public Status cleanupDirectory(Map<String, Path> nasIndex) {        
-        // Changes status of method to "RUNNING".
-        status = Status.RUNNING;
+    public void cleanupDirectory(Map<String, Path> nasIndex) {        
 
         // List of files in the tempMediaDir
         try (Stream<Path> files = Files.list(tempMediaDir)) {
@@ -184,10 +172,7 @@ public class FileScanner {
                 });
         } catch (IOException e) {
             e.printStackTrace();
-            return Status.FAILED;
         }
-        // If no errors were caught, return Status COMPLETED.
-        return Status.COMPLETED;
     }
 
     public long getFileSize(String file) {

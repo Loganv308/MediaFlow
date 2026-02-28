@@ -4,24 +4,19 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import com.loganv308.enums.Encoding;
-import com.loganv308.enums.Status;
 
 public class Encoder {
-
-    private Status status = Status.IDLE;
 
     private static utils ut = new utils();
 
     private static ProcessBuilder pb = null;
 
-    public Status reEncode(String filePath) {
+    public void reEncode(String filePath) {
         String out = "";
 
         Process p = null;
 
         int exitCode = 0;
-
-        status = Status.RUNNING;
 
         try {
 
@@ -65,10 +60,7 @@ public class Encoder {
 
         } catch (IOException | InterruptedException e) {
             System.out.println(e);
-            return Status.FAILED;
         }
-
-        return exitCode == 0 ? Status.COMPLETED : Status.FAILED;
     }
 
     // This function will get the media encoding of a specified path
@@ -186,13 +178,4 @@ public class Encoder {
         };
         return resultEncoding;
     }
-
-    // public static Encoding isWrongEncoding(Path mediaFile) {
-    //     Encoding encoding = getMediaEncoding(mediaFile);
-
-    //     System.out.println("Encoding: " + encoding);
-        
-    //     // example: only allow HEVC
-    //     return encoding;
-    // }
 }
