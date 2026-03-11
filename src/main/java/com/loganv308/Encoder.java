@@ -1,6 +1,9 @@
 package com.loganv308;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
 
 import com.loganv308.enums.Encoding;
@@ -12,11 +15,7 @@ public class Encoder {
     private static ProcessBuilder pb = null;
 
     public void reEncode(String filePath) {
-        String out = "";
-
         Process p = null;
-
-        int exitCode = 0;
 
         try {
 
@@ -27,21 +26,27 @@ public class Encoder {
                 pb = new ProcessBuilder(
                     ".\\ffmpeg\\ffmpeg.exe", 
                     "-i", filePath, 
-                    "-c:v", "libx265",
-                    "-vtag", "hvc1",
-                    "-vf", "scale=1920:1080", 
-                    "-crf 20", "-c:a copy", 
-                    filePath
+                    "-c:v", "h264_nvenc",
+                    "-preset", "p5",
+                    "-cq", "20",
+                    "-filter_complex", "[0:v]scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease[outv]",
+                    "-map", "[outv]",
+                    "-map", "0:a?",
+                    "-c:a", "copy",
+                    filePath + " - ReEncoded " + ut.getDate().toString()
                 );
             } else {
                 // Gets the encoding of whichever file you direct it to. 
                 pb = new ProcessBuilder(
                     "ffmpeg", 
                     "-i", filePath, 
-                    "-c:v", "libx265",
-                    "-vtag", "hvc1",
-                    "-vf", "scale=1920:1080", 
-                    "-crf 20", "-c:a copy", 
+                    "-c:v", "h264_nvenc",
+                    "-preset", "p5",
+                    "-cq", "20",
+                    "-filter_complex", "[0:v]scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease[outv]",
+                    "-map", "[outv]",
+                    "-map", "0:a?",
+                    "-c:a", "copy",
                     filePath
                 );
             }
@@ -51,15 +56,44 @@ public class Encoder {
             
             p = pb.start();
 
-            exitCode = p.waitFor();
+            // Start error consumer thread
+            InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
+            Thread errorThread = new Thread(errorConsumer);
+            errorThread.start();
 
-            // Captures the output stream and reads it to the output String variable
-            out = new String(p.getInputStream().readAllBytes());
-            System.out.println("Output: " + out + "\n");
-            out.trim();
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
 
-        } catch (IOException | InterruptedException e) {
-            System.out.println(e);
+            // Wait for FFmpeg to finish
+            int exitCode = p.waitFor();
+
+            // Wait for both threads to finish reading streams
+            errorThread.join();
+            outputThread.join();
+
+            // Now you can safely get the output/errors
+            String errors = errorConsumer.getOutput().trim();
+            String output = outputConsumer.getOutput().trim();
+
+            // Print output
+            System.out.println("FFmpeg exited with code: " + exitCode);
+            if (!errors.isEmpty()) {
+                System.out.println("FFmpeg messages:\n" + errors);
+            }
+
+            System.out.println("FFmpeg exited with code: " + exitCode);
+            System.out.println("Output:\n" + output);
+
+            // Handle errors if FFmpeg failed
+            if (exitCode != 0) {
+                throw new RuntimeException("FFmpeg failed: " + errors);
+            }
+            
+        } catch (IOException e) {
+            System.err.println("IOException (File): " + e);
+        } catch (InterruptedException e) {
+            System.err.println("Interrupted Exception: ");
         }
     }
 
@@ -94,13 +128,39 @@ public class Encoder {
             // Assigned the processbuilder starting method to Process p;
             Process p = pb.start();
 
-            // Captures the output stream and reads it to the output String variable
-            String out = new String(p.getInputStream().readAllBytes());
+            // Start error consumer thread
+            InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
+            Thread errorThread = new Thread(errorConsumer);
+            errorThread.start();
 
-            p.waitFor();
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
+
+            // Wait for FFmpeg to finish
+            int exitCode = p.waitFor();
+
+            // Wait for both threads to finish reading streams
+            errorThread.join();
+            outputThread.join();
+
+            // Now you can safely get the output/errors
+            String errors = errorConsumer.getOutput().trim();
+            String output = outputConsumer.getOutput().trim();
+
+            // Print output
+            System.out.println("FFmpeg exited with code: " + exitCode);
+            if (!errors.isEmpty()) {
+                System.out.println("FFmpeg messages:\n" + errors);
+            }
+
+            // Handle errors if FFmpeg failed
+            if (exitCode != 0) {
+                throw new RuntimeException("FFmpeg failed: " + errors);
+            }
             
             // The .trim() is NECESSARY here, without it, ffprobe outputs "hevc\n" instead of just "hevc"
-            return fromEncoding(out.trim());
+            return fromEncoding(output);
 
         } catch (Exception e) {
             System.err.println("Failed to probe encoding: " + filePath);
@@ -132,13 +192,40 @@ public class Encoder {
 
             Process p = pb.start();
 
-            String output = new String(p.getInputStream().readAllBytes()).trim();
-            p.waitFor();
+            // Start error consumer thread
+            InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
+            Thread errorThread = new Thread(errorConsumer);
+            errorThread.start();
 
-            if (output.isEmpty()) {
-                return false;
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
+
+            // Wait for FFmpeg to finish
+            int exitCode = p.waitFor();
+
+            // Wait for both threads to finish reading streams
+            errorThread.join();
+            outputThread.join();
+
+            // Now you can safely get the output/errors
+            String errors = errorConsumer.getOutput().trim();
+            String output = outputConsumer.getOutput().trim();
+
+            // Print output
+            System.out.println("FFmpeg exited with code: " + exitCode);
+            if (!errors.isEmpty()) {
+                System.out.println("FFmpeg messages:\n" + errors);
             }
 
+            System.out.println("FFmpeg exited with code: " + exitCode);
+            System.out.println("Output:\n" + output);
+
+            // Handle errors if FFmpeg failed
+            if (exitCode != 0) {
+                throw new RuntimeException("FFmpeg failed: " + errors);
+            }
+            
             int height = Integer.parseInt(output);
 
             return height > 1080;
@@ -179,3 +266,30 @@ public class Encoder {
         return resultEncoding;
     }
 }
+
+class InputStreamConsumer implements Runnable {
+        private InputStream inputStream;
+        private String type;
+        private StringBuilder output = new StringBuilder();
+
+        public InputStreamConsumer(InputStream inputStream, String type) {
+            this.inputStream = inputStream;
+            this.type = type;
+        }
+
+        public void run() {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                output.append(line).append("\n");
+                System.out.println(type + "> " + line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+        public String getOutput() {
+            return output.toString();
+        }
+    }

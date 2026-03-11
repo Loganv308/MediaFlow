@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import com.loganv308.cache.FileRecord;
 import com.loganv308.enums.Encoding;
 
 public class FileScanner {
@@ -29,7 +30,7 @@ public class FileScanner {
     // Mapping will show up as follows:
     // - Map <FileName>, <pathToFile>
     // This is later used in the cleanupDirectory() method. 
-    public Map<String, Path> indexAllMedia(Path dirPath) {
+    public Map<String, Path> indexAllMedia(Path dirPath, Map<String, FileRecord> cache) {
 
         // Initial map to append results too
         Map<String, Path> index = new HashMap<>();
@@ -39,8 +40,6 @@ public class FileScanner {
 
         // Push the directory paths to the stack
         stack.push(dirPath);
-
-        System.out.println(stack);
         
         // While the stack does not contain file paths.
         while(!stack.isEmpty()) {
@@ -62,11 +61,25 @@ public class FileScanner {
                         stack.push(p);
                     // Else, if the file is a media file...
                     } else if (FileScanner.isMediaFile(p)) {
+
+                        String key = p.getFileName().toString();
+                        long currentLastModified = Files.getLastModifiedTime(p).toMillis();
+                        FileRecord cached = cache.get(key);
+
+                            // If cached and file hasn't changed, reuse it
+                        if (cached != null && cached.getLastModified() == currentLastModified) {
+                            System.out.println("Cache hit, skipping: " + key);
+                            index.putIfAbsent(key, p);
+                            continue;
+                        }
+
                         // If the media file encoding is HEVC or H265 (Same thing basically)...
                         if(Encoder.getMediaEncoding(p) != Encoding.HEVC && Encoder.getMediaEncoding(p) != Encoding.H265) {
                             // Looks up the filename in the "index" map, using the filename as a key.
                             index.putIfAbsent(p.getFileName().toString(), p);
                             
+                            cache.put(key, new FileRecord(p, currentLastModified));
+
                             // Same thing as the following code:                        
                             //if (!index.containsKey(key)) {
                                 //index.put(key, p);

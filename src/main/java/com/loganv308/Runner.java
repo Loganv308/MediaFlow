@@ -7,6 +7,8 @@ import java.util.List;
 // import io.github.cdimascio.dotenv.Dotenv;
 import java.util.Map;
 
+import com.loganv308.cache.PersistentCache;
+
 public class Runner extends Thread {
 
     // Grabs environment variables from .env file
@@ -22,6 +24,10 @@ public class Runner extends Thread {
     private static utils ut = new utils();
 
     public static void main(String[] args) {
+
+        PersistentCache persistentCache = new PersistentCache();
+    
+        Runtime.getRuntime().addShutdownHook(new Thread(persistentCache::save));
         
         Runner thread = new Runner();
         
@@ -64,7 +70,7 @@ public class Runner extends Thread {
 
                 System.out.println("Getting media...");
 
-                Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot);
+                Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot, persistentCache.getCache());
 
                 System.out.println("Size of list: " + nasIndex.size());
 
@@ -93,7 +99,7 @@ public class Runner extends Thread {
                     System.out.println("Re-encoding starting for " + fileName + " in progress...");
 
                     // Re-encoding logic for the local file.
-                    // enc.reEncode(formattedLocalFile);
+                    enc.reEncode(formattedLocalFile);
 
                     System.out.println("Encoding complete for: " + formattedLocalFile);
                     System.out.println("Copying back to NAS...");
