@@ -72,20 +72,14 @@ public class FileScanner {
                             index.putIfAbsent(key, p);
                             continue;
                         }
-
-                        // If the media file encoding is HEVC or H265 (Same thing basically)...
-                        if(Encoder.getMediaEncoding(p) != Encoding.HEVC && Encoder.getMediaEncoding(p) != Encoding.H265) {
-                            // Looks up the filename in the "index" map, using the filename as a key.
-                            index.putIfAbsent(p.getFileName().toString(), p);
-                            
+                        Encoding enc = Encoder.getMediaEncoding(p);
+                        if (enc != Encoding.HEVC && enc != Encoding.H265) {
+                            index.putIfAbsent(key, p);
                             cache.put(key, new FileRecord(p, currentLastModified));
-
-                            // Same thing as the following code:                        
-                            //if (!index.containsKey(key)) {
-                                //index.put(key, p);
-                            //}
                         } else {
-                            System.out.println(p + " is already HVEC...");
+                            System.out.println(p + " is already HEVC...");
+                            // Cache it so we don't re-check encoding next run
+                            cache.put(key, new FileRecord(p, currentLastModified));
                         }
                     }
                 }

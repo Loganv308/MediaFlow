@@ -3,7 +3,7 @@ package com.loganv308.cache;
 import java.io.Serializable;
 import java.nio.file.Path;
 
-public class FileRecord implements Serializable{
+public class FileRecord implements Serializable {
     private String fileName;
     private String fullPath;
     private long lastModified;

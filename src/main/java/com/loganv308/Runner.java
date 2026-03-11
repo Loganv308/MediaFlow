@@ -26,12 +26,8 @@ public class Runner extends Thread {
     public static void main(String[] args) {
 
         PersistentCache persistentCache = new PersistentCache();
-    
+        
         Runtime.getRuntime().addShutdownHook(new Thread(persistentCache::save));
-        
-        Runner thread = new Runner();
-        
-        thread.start();
 
         System.out.println("MediaFlow Thread is running...");
 

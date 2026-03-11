@@ -7,8 +7,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PersistentCache {
     private static final String CACHE_FILE = "media_cache.ser";
@@ -17,14 +17,14 @@ public class PersistentCache {
     public PersistentCache() {
         if (Files.exists(Paths.get(CACHE_FILE))) {
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(CACHE_FILE))) {
-                cache = (Map<String, FileRecord>) in.readObject();
+                cache = new ConcurrentHashMap<>((Map<String, FileRecord>) in.readObject());
                 System.out.println("Loaded " + cache.size() + " cached entries");
             } catch (Exception e) {
                 System.out.println("Cache unreadable, starting fresh");
-                cache = new HashMap<>();
+                cache = new ConcurrentHashMap<>();
             }
         } else {
-            cache = new HashMap<>();
+            cache = new ConcurrentHashMap<>();
         }
     }
 
