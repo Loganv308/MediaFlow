@@ -3,6 +3,7 @@ package com.loganv308.cache;
 import java.io.Serializable;
 import java.nio.file.Path;
 
+// Serializable filerecord used to store cached file paths from the NAS, as they never change. New ones will be automatically detected and added to cache once re-encoded. 
 public class FileRecord implements Serializable {
     private String fileName;
     private String fullPath;

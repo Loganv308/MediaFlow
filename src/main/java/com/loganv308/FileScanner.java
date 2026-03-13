@@ -22,7 +22,7 @@ public class FileScanner {
     // Logger instance
     // private static Logger logger = new Logger();
 
-    private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov" };
+    private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov", ".m2ts" };
 
     private static final Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
 
@@ -93,6 +93,7 @@ public class FileScanner {
         return index;
     } 
     
+    // TODO: Re-factor this in the future, seems to perform very slow.
     // Gets all temporary paths in /tmp directory
     public List<Path> getTempPaths() {
         
@@ -199,5 +200,18 @@ public class FileScanner {
         String fileName = sourcePath.getFileName().toString();
 
         return fileName;
+    }
+
+    public String getFileExtension(String fileName) {
+        if (fileName == null) {
+            return null;
+        }
+        int dotIndex = fileName.lastIndexOf(".");
+
+        if (dotIndex >= 0) {
+            return fileName.substring(dotIndex);
+        }
+        
+        return "No file extension...";
     }
 }

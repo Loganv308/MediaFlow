@@ -1,9 +1,9 @@
 package com.loganv308;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 // import io.github.cdimascio.dotenv.Dotenv;
 import java.util.Map;
 
@@ -29,8 +29,6 @@ public class Runner extends Thread {
         
         Runtime.getRuntime().addShutdownHook(new Thread(persistentCache::save));
 
-        System.out.println("MediaFlow Thread is running...");
-
         while(true) {
             try {
                 // Initialize variables
@@ -47,7 +45,7 @@ public class Runner extends Thread {
                         Files.createDirectories(Paths.get(tempDir));
                     }
                     // Check if NAS media path is accessible 
-                    if(!Files.exists(Paths.get("Y:\\movies"))) {
+                    if(!Files.exists(Paths.get("Y:\\movies\\Mission - Impossible - Ghost Protocol (2011)"))) {
                         System.out.println("NAS Media path not found, retrying in 10 minutes...");
                         try {
                             Thread.sleep(600000); // Sleep for 10 minutes
@@ -56,27 +54,27 @@ public class Runner extends Thread {
                         }
                         return;
                     } else {
-                        nasRoot = Paths.get("Y:\\movies");
+                        nasRoot = Paths.get("Y:\\movies\\Mission - Impossible - Ghost Protocol (2011)");
                     }
                 // Else if OS == Linux or Mac
                 } else if(ut.getOS().contains("nix") || ut.getOS().contains("nux") || ut.getOS().contains("mac")) {
                     tempDir = "/tmp/nascopiestest/";
-                    nasRoot = Paths.get("/mnt/NASMedia/movies");
+                    nasRoot = Paths.get("Y:\\movies\\Mission - Impossible - Ghost Protocol (2011)");
                 }
 
                 System.out.println("Getting media...");
 
+                // Main NAS Index Map, runs against the NAS and utilizes the Cache. 
                 Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot, persistentCache.getCache());
 
                 System.out.println("Size of list: " + nasIndex.size());
 
+                // Checks if NAS list is empty.
                 if (nasIndex.isEmpty()) {
                     System.out.println("No media found, retrying in 10 minutes...");
-                    try {
-                        Thread.sleep(600000); // Sleep for 10 minutes
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
+
+                    Thread.sleep(600000); // Sleep for 10 minutes
+
                     return;
                 }
 
@@ -103,12 +101,13 @@ public class Runner extends Thread {
                     // Transfers the file back TO the NAS using the original file. 
                     fs.nasTransfer(formattedLocalFile, nasOriginalPath.toString());
 
+                    // Sleep for 10 minutes before re-scanning NAS. 
+                    Thread.sleep(600000);
                     // Will comment this out to cleanup directory, needs some minor re-working. 
                     // fs.cleanupDirectory(nasIndex);
                 }
 
                 // Gets list of files in temp directory
-                // Refactor this perhaps.
                 // List<Path> tempDirMediaList = fs.getTempPaths();
 
                 // // Cleans up temp directory
@@ -116,8 +115,10 @@ public class Runner extends Thread {
                 //     System.out.println("Deleting temp file: " + p.toString());
                 // }
 
-            } catch (Exception e) {
-                System.out.println(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (IOException e) {
+                System.out.println("File not found.");
             }
         }   
     }

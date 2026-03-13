@@ -9,61 +9,55 @@ import java.nio.file.Path;
 import com.loganv308.enums.Encoding;
 
 public class Encoder {
+    private static FileScanner fs = new FileScanner();
 
     private static utils ut = new utils();
 
     private static ProcessBuilder pb = null;
 
+    // Main re-encoding method, will run a specific FFMPEG command to run against each media file needing re-encoding. 
     public void reEncode(String filePath) {
         Process p = null;
+
+        String fileExtension = fs.getFileExtension(filePath);
 
         try {
 
             System.out.println("Starting re-encode of: " + filePath + "\n");
 
-            if(ut.getOS().contains("win")) {
-                filePath = filePath.replace("\\", "/");
-                pb = new ProcessBuilder(
-                    ".\\ffmpeg\\ffmpeg.exe", 
-                    "-i", filePath, 
-                    "-c:v", "h264_nvenc",
-                    "-preset", "p5",
-                    "-cq", "20",
-                    "-filter_complex", "[0:v]scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease[outv]",
-                    "-map", "[outv]",
-                    "-map", "0:a?",
-                    "-c:a", "copy",
-                    filePath + " - ReEncoded " + ut.getDate().toString()
-                );
-            } else {
-                // Gets the encoding of whichever file you direct it to. 
-                pb = new ProcessBuilder(
-                    "ffmpeg", 
-                    "-i", filePath, 
-                    "-c:v", "h264_nvenc",
-                    "-preset", "p5",
-                    "-cq", "20",
-                    "-filter_complex", "[0:v]scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease[outv]",
-                    "-map", "[outv]",
-                    "-map", "0:a?",
-                    "-c:a", "copy",
-                    filePath
-                );
-            }
+            String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
+
+            if(ut.getOS().contains("win")) filePath = filePath.replace("\\", "/");
+
+            pb = new ProcessBuilder(
+                ffmpegBin, 
+                "-i", filePath, 
+                "-c:v", "h264_nvenc",
+                "-preset", "p5",
+                "-cq", "28",
+                "-rc", "vbr",
+                "-filter_complex", "[0:v]scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease[outv]",
+                "-map", "[outv]",
+                "-map", "0:a?",
+                "-c:a", "copy",
+                filePath + "Reencoded - " + ut.getDate().toString() + fileExtension
+            );
             
             // Assigned the processbuilder starting method to Process p;
             System.out.println("Process Started..." + "\n");
             
+            // Starts the process
             p = pb.start();
+
+            // Start standard output consumer thread
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
 
             // Start error consumer thread
             InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
             Thread errorThread = new Thread(errorConsumer);
             errorThread.start();
-
-            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
-            Thread outputThread = new Thread(outputConsumer);
-            outputThread.start();
 
             // Wait for FFmpeg to finish
             int exitCode = p.waitFor();
@@ -100,30 +94,21 @@ public class Encoder {
     // This function will get the media encoding of a specified path
     public static Encoding getMediaEncoding(Path filePath) {
         try {
-            if(ut.getOS().contains("win")) {
-                String formattedFilePath = "\"" + filePath + "\"";
+            // if OS == win then use ffmpeg executable in ffmpeg folder, otherwise use ffmpeg command via linux terminal. 
+            String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
 
-                // Gets the encoding of whichever file you direct it to. 
-                pb = new ProcessBuilder(
-                    ".\\ffmpeg\\ffprobe.exe",
-                    "-v", "error",
-                    "-select_streams", "v:0",
-                    "-show_entries", "stream=codec_name",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    formattedFilePath
-                );
+            // Convert to String from Path
+            String filePathStr = filePath.toString();
 
-            } else {
-                // Gets the encoding of whichever file you direct it to. 
-                pb = new ProcessBuilder(
-                    "ffprobe",
-                    "-v", "error",
-                    "-select_streams", "v:0",
-                    "-show_entries", "stream=codec_name",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    filePath.toString()
-                );
-            }
+            // Gets the encoding of whichever file you direct it to. 
+            pb = new ProcessBuilder(
+                ffmpegBin,
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=codec_name",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                filePathStr
+            );
             
             // Assigned the processbuilder starting method to Process p;
             Process p = pb.start();
@@ -168,28 +153,26 @@ public class Encoder {
         }
     }
 
+    // Checks if media file is above 1080p resolution. 
     public boolean isAbove1080p(Path mediaFile) {
         try {
-            if(ut.getOS().contains("win")) {
-                pb = new ProcessBuilder(
-                    ".\\ffmpeg\\ffprobe",
-                    "-v", "error",
-                    "-select_streams", "v:0",
-                    "-show_entries", "stream=height",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    mediaFile.toString()
-                );
-            } else {
-                pb = new ProcessBuilder(
-                    "ffprobe",
-                    "-v", "error",
-                    "-select_streams", "v:0",
-                    "-show_entries", "stream=height",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
-                    mediaFile.toString()
-                );
-            }
+            // if OS == win then use ffmpeg executable in ffmpeg folder, otherwise use ffmpeg command via linux terminal. 
+            String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
 
+            // Convert to String from Path
+            String filePathStr = mediaFile.toString();
+
+            // Process builder string
+            pb = new ProcessBuilder(
+                ffmpegBin,
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=height",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                filePathStr
+            );
+
+            // Starts process 
             Process p = pb.start();
 
             // Start error consumer thread
@@ -267,6 +250,7 @@ public class Encoder {
     }
 }
 
+// InputStream class. Used for FFMPEG methods. 
 class InputStreamConsumer implements Runnable {
         private InputStream inputStream;
         private String type;
