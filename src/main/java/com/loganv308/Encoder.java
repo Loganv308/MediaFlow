@@ -9,17 +9,25 @@ import java.nio.file.Path;
 import com.loganv308.enums.Encoding;
 
 public class Encoder {
+    // FileScanner object instance
     private static FileScanner fs = new FileScanner();
 
+    // Utils objects instance
     private static utils ut = new utils();
 
+    // ProcessBuilder object instance
     private static ProcessBuilder pb = null;
 
     // Main re-encoding method, will run a specific FFMPEG command to run against each media file needing re-encoding. 
-    public void reEncode(String filePath) {
+    public String reEncode(String filePath) {
+        // Initialize process as NULL
         Process p = null;
 
+        // Get the file extension of the filepath. 
         String fileExtension = fs.getFileExtension(filePath);
+
+        // Outputted file path being returned to the main process
+        String formattedOutputString = filePath + "Reencoded - " + ut.getDate().toString() + fileExtension;
 
         try {
 
@@ -40,7 +48,7 @@ public class Encoder {
                 "-map", "[outv]",
                 "-map", "0:a?",
                 "-c:a", "copy",
-                filePath + "Reencoded - " + ut.getDate().toString() + fileExtension
+                formattedOutputString
             );
             
             // Assigned the processbuilder starting method to Process p;
@@ -83,19 +91,21 @@ public class Encoder {
             if (exitCode != 0) {
                 throw new RuntimeException("FFmpeg failed: " + errors);
             }
-            
+
         } catch (IOException e) {
             System.err.println("IOException (File): " + e);
         } catch (InterruptedException e) {
             System.err.println("Interrupted Exception: ");
         }
+
+        return formattedOutputString;
     }
 
     // This function will get the media encoding of a specified path
     public static Encoding getMediaEncoding(Path filePath) {
         try {
             // if OS == win then use ffmpeg executable in ffmpeg folder, otherwise use ffmpeg command via linux terminal. 
-            String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
+            String ffmpegBin = ut.getOS().contains("win") ? "ffmpeg\\ffprobe.exe" : "ffprobe";
 
             // Convert to String from Path
             String filePathStr = filePath.toString();
@@ -113,14 +123,15 @@ public class Encoder {
             // Assigned the processbuilder starting method to Process p;
             Process p = pb.start();
 
+            // Start normal output consumer thread
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
+
             // Start error consumer thread
             InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
             Thread errorThread = new Thread(errorConsumer);
             errorThread.start();
-
-            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
-            Thread outputThread = new Thread(outputConsumer);
-            outputThread.start();
 
             // Wait for FFmpeg to finish
             int exitCode = p.waitFor();
@@ -148,7 +159,7 @@ public class Encoder {
             return fromEncoding(output);
 
         } catch (Exception e) {
-            System.err.println("Failed to probe encoding: " + filePath);
+            System.err.println("Failed to probe encoding: " + filePath + " | " + e);
             return Encoding.UNKNOWN;
         }
     }
@@ -157,7 +168,7 @@ public class Encoder {
     public boolean isAbove1080p(Path mediaFile) {
         try {
             // if OS == win then use ffmpeg executable in ffmpeg folder, otherwise use ffmpeg command via linux terminal. 
-            String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
+            String ffmpegBin = ut.getOS().contains("win") ? "ffmpeg\\ffprobe.exe" : "ffprobe";
 
             // Convert to String from Path
             String filePathStr = mediaFile.toString();
@@ -175,14 +186,14 @@ public class Encoder {
             // Starts process 
             Process p = pb.start();
 
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
+
             // Start error consumer thread
             InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
             Thread errorThread = new Thread(errorConsumer);
             errorThread.start();
-
-            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
-            Thread outputThread = new Thread(outputConsumer);
-            outputThread.start();
 
             // Wait for FFmpeg to finish
             int exitCode = p.waitFor();

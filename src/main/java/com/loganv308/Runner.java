@@ -17,11 +17,10 @@ public class Runner extends Thread {
     // Media mount key in the .env file
     // private static final String mediaMount = dotenv.get("MEDIA_MOUNT");
 
-    private static Encoder enc = new Encoder();
-
-    private static FileScanner fs = new FileScanner();
-
     private static utils ut = new utils();
+    private static Encoder enc = new Encoder();
+    private static String tempDirString = "C:\\tmp\\nascopiestest\\";
+    private static FileScanner fs = new FileScanner();
 
     public static void main(String[] args) {
 
@@ -31,21 +30,17 @@ public class Runner extends Thread {
 
         while(true) {
             try {
-                // Initialize variables
-                String tempDir = "";
                 Path nasRoot = Paths.get("");
 
                 // Determine OS and set paths accordingly
                 if(ut.getOS().contains("win")) {
-                    // Windows OS
-                    tempDir = "C:\\tmp\\nascopiestest\\";
 
                     // If the temp directory doesn't exist, create it
-                    if(!Files.exists(Paths.get(tempDir))) {
-                        Files.createDirectories(Paths.get(tempDir));
+                    if(!Files.exists(Paths.get(tempDirString))) {
+                        Files.createDirectories(Paths.get(tempDirString));
                     }
                     // Check if NAS media path is accessible 
-                    if(!Files.exists(Paths.get("Y:\\movies\\Mission - Impossible - Ghost Protocol (2011)"))) {
+                    if(!Files.exists(Paths.get("Y:\\Test"))) {
                         System.out.println("NAS Media path not found, retrying in 10 minutes...");
                         try {
                             Thread.sleep(600000); // Sleep for 10 minutes
@@ -54,12 +49,12 @@ public class Runner extends Thread {
                         }
                         return;
                     } else {
-                        nasRoot = Paths.get("Y:\\movies\\Mission - Impossible - Ghost Protocol (2011)");
+                        nasRoot = Paths.get("Y:\\Test");
                     }
                 // Else if OS == Linux or Mac
                 } else if(ut.getOS().contains("nix") || ut.getOS().contains("nux") || ut.getOS().contains("mac")) {
-                    tempDir = "/tmp/nascopiestest/";
-                    nasRoot = Paths.get("Y:\\movies\\Mission - Impossible - Ghost Protocol (2011)");
+                    tempDirString = "/tmp/nascopiestest/";
+                    nasRoot = Paths.get("Y:\\Test");
                 }
 
                 System.out.println("Getting media...");
@@ -84,7 +79,7 @@ public class Runner extends Thread {
                 for(Map.Entry<String, Path> i : nasIndex.entrySet()) {
                     String fileName = i.getKey();
                     Path nasOriginalPath = i.getValue();
-                    String formattedLocalFile = tempDir + "\\" + fileName;
+                    String formattedLocalFile = tempDirString + "\\" + fileName;
                     
                     // Transfers the file from the NAS.
                     fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
@@ -93,27 +88,20 @@ public class Runner extends Thread {
                     System.out.println("Re-encoding starting for " + fileName + " in progress...");
 
                     // Re-encoding logic for the local file.
-                    enc.reEncode(formattedLocalFile);
+                    String outputEncodedPath = enc.reEncode(formattedLocalFile);
 
                     System.out.println("Encoding complete for: " + formattedLocalFile);
                     System.out.println("Copying back to NAS...");
 
                     // Transfers the file back TO the NAS using the original file. 
-                    fs.nasTransfer(formattedLocalFile, nasOriginalPath.toString());
+                    fs.nasTransfer(outputEncodedPath, nasOriginalPath.toString());
 
                     // Sleep for 10 minutes before re-scanning NAS. 
                     Thread.sleep(600000);
+
                     // Will comment this out to cleanup directory, needs some minor re-working. 
-                    // fs.cleanupDirectory(nasIndex);
+                    fs.cleanTempDirectory();
                 }
-
-                // Gets list of files in temp directory
-                // List<Path> tempDirMediaList = fs.getTempPaths();
-
-                // // Cleans up temp directory
-                // for(Path p : tempDirMediaList) {
-                //     System.out.println("Deleting temp file: " + p.toString());
-                // }
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

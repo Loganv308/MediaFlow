@@ -66,7 +66,7 @@ public class FileScanner {
                         long currentLastModified = Files.getLastModifiedTime(p).toMillis();
                         FileRecord cached = cache.get(key);
 
-                            // If cached and file hasn't changed, reuse it
+                        // If cached and file hasn't changed, reuse it
                         if (cached != null && cached.getLastModified() == currentLastModified) {
                             System.out.println("Cache hit, skipping: " + key);
                             index.putIfAbsent(key, p);
@@ -93,22 +93,29 @@ public class FileScanner {
         return index;
     } 
     
-    // TODO: Re-factor this in the future, seems to perform very slow.
     // Gets all temporary paths in /tmp directory
-    public List<Path> getTempPaths() {
+    public void cleanTempDirectory() {
         
-        List<Path> tempFiles = new ArrayList<Path>();
+        Deque<Path> tempFileStack = new ArrayDeque<>();
 
-        try(Stream<Path> files = Files.list(tempMediaDir)) {
-            files
-                .forEach (s -> {
-                    tempFiles.add(s);
-                });
+        tempFileStack.push(tempMediaDir);
+
+        try(DirectoryStream<Path> files = Files.newDirectoryStream(tempMediaDir)) {
+            for(Path p : files) {
+                tempFileStack.push(p);
+                // Logs file added to stack here
+            }
+
+            for(Path f : files) {
+                System.out.println(f);
+                //Files.delete(f);
+                // TEST THIS FIRST BEFORE UN-COMMENTING THE LINE ABOVE.
+                // Log file deletion here to Log file
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        return tempFiles;
     }
 
     private static boolean isMediaFile(Path path) {
@@ -141,47 +148,47 @@ public class FileScanner {
         }
     }
 
-    // Loops through temp directory, grabs all file names, runs it against a map to determine where it is on the NAS. 
-    public void cleanupDirectory(Map<String, Path> nasIndex) {        
+    // Most likely unneccessary, refer to cleanupTempDirectory(). This has been refactored. 
+    // public void cleanupDirectory(Map<String, Path> nasIndex) {        
 
-        // List of files in the tempMediaDir
-        try (Stream<Path> files = Files.list(tempMediaDir)) {
-            files
-                // Filters based on another Method if it's a media file (Follows extension rule)    
-                .filter(FileScanner::isMediaFile)
-                // For each file in that list...
-                .forEach(tempPath -> {
-                    try {
-                        // Grabs the file name from the passed in Map
-                        Path nasPath = nasIndex.get(tempPath.getFileName().toString());
+    //     // List of files in the tempMediaDir
+    //     try (Stream<Path> files = Files.list(tempMediaDir)) {
+    //         files
+    //             // Filters based on another Method if it's a media file (Follows extension rule)    
+    //             .filter(FileScanner::isMediaFile)
+    //             // For each file in that list...
+    //             .forEach(tempPath -> {
+    //                 try {
+    //                     // Grabs the file name from the passed in Map
+    //                     Path nasPath = nasIndex.get(tempPath.getFileName().toString());
 
-                        System.out.println("NASIndex: " + nasIndex);
-                        // If the path is null, exits the method
-                        if (nasPath == null) {
-                            System.err.println("No NAS match for: " + tempPath);
-                            return;
-                        }
-                        // Expected file path (On the NAS)
-                        long expected = Files.size(nasPath);
-                        // Actual file path (Local copy)
-                        long actual = Files.size(tempPath);
+    //                     System.out.println("NASIndex: " + nasIndex);
+    //                     // If the path is null, exits the method
+    //                     if (nasPath == null) {
+    //                         System.err.println("No NAS match for: " + tempPath);
+    //                         return;
+    //                     }
+    //                     // Expected file path (On the NAS)
+    //                     long expected = Files.size(nasPath);
+    //                     // Actual file path (Local copy)
+    //                     long actual = Files.size(tempPath);
 
-                        System.out.println(expected + " | " + actual);
+    //                     System.out.println(expected + " | " + actual);
 
-                        // If the nas file isn't the same size as the actual path...
-                        if (expected != actual) {
-                            // Delete the file, prevents inconsistencies if interupted. 
-                            // Files.delete(tempPath);
-                            System.out.println("Deleted (incomplete copy): " + tempPath);
-                        }
-                    } catch (IOException e) {
-                        System.err.println("Failed to process: " + e);
-                    }
-                });
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    //                     // If the nas file isn't the same size as the actual path...
+    //                     if (expected != actual) {
+    //                         // Delete the file, prevents inconsistencies if interupted. 
+    //                         // Files.delete(tempPath);
+    //                         System.out.println("Deleted (incomplete copy): " + tempPath);
+    //                     }
+    //                 } catch (IOException e) {
+    //                     System.err.println("Failed to process: " + e);
+    //                 }
+    //             });
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 
     public long getFileSize(String file) {
 
