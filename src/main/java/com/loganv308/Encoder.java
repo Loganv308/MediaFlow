@@ -34,7 +34,7 @@ public class Encoder {
             System.out.println("Starting re-encode of: " + filePath + "\n");
 
             String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
-
+            
             if(ut.getOS().contains("win")) filePath = filePath.replace("\\", "/");
 
             pb = new ProcessBuilder(

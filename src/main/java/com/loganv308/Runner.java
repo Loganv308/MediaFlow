@@ -21,9 +21,11 @@ public class Runner extends Thread {
     private static Encoder enc = new Encoder();
     private static String tempDirString = "C:\\tmp\\nascopiestest\\";
     private static FileScanner fs = new FileScanner();
+    private static SpaceSavingCalculator ssc = new SpaceSavingCalculator(0.0);
 
     public static void main(String[] args) {
 
+        // Cache class object call
         PersistentCache persistentCache = new PersistentCache();
         
         Runtime.getRuntime().addShutdownHook(new Thread(persistentCache::save));
@@ -76,9 +78,18 @@ public class Runner extends Thread {
                 // Logs number of files needing re-encode
                 System.out.println("Files needing re-encode: " + nasIndex.size());
                 
+                /** 
+                Deletes all files in the C:/tmp/nascopiestest/ to ensure no duplicates and always fresh copies of re-encoded media. 
+                */
+                fs.cleanTempDirectory();
+                
                 for(Map.Entry<String, Path> i : nasIndex.entrySet()) {
                     String fileName = i.getKey();
                     Path nasOriginalPath = i.getValue();
+
+                    Double fileSize = ssc.getExpectedFileSize(nasOriginalPath);
+                    
+                    // Formatted String, this puts the temp directory string and filename together.
                     String formattedLocalFile = tempDirString + "\\" + fileName;
                     
                     // Transfers the file from the NAS.
@@ -93,14 +104,11 @@ public class Runner extends Thread {
                     System.out.println("Encoding complete for: " + formattedLocalFile);
                     System.out.println("Copying back to NAS...");
 
-                    // Transfers the file back TO the NAS using the original file. 
+                    // Transfers the file back to the NAS using the new encoded file, and original NAS path. 
                     fs.nasTransfer(outputEncodedPath, nasOriginalPath.toString());
 
                     // Sleep for 10 minutes before re-scanning NAS. 
                     Thread.sleep(600000);
-
-                    // Will comment this out to cleanup directory, needs some minor re-working. 
-                    fs.cleanTempDirectory();
                 }
 
             } catch (InterruptedException e) {

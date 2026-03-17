@@ -7,12 +7,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import com.loganv308.cache.FileRecord;
 import com.loganv308.enums.Encoding;
@@ -22,9 +19,14 @@ public class FileScanner {
     // Logger instance
     // private static Logger logger = new Logger();
 
+    private static final utils ut = new utils();
+
     private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov", ".m2ts" };
 
-    private static final Path tempMediaDir = Paths.get("/tmp/nascopiestest/");
+    private static Deque<Path> stack = new ArrayDeque<Path>();
+
+    // Temporary media directory. 
+    private static final Path tempMediaDir = ut.getOS().contains("win") ? Paths.get("C:/tmp/nascopiestest/") : Paths.get("/tmp/nascopiestest/");
 
     // This method gets all media from the specified directory. We get all movies in this case.
     // Mapping will show up as follows:
@@ -34,9 +36,6 @@ public class FileScanner {
 
         // Initial map to append results too
         Map<String, Path> index = new HashMap<>();
-
-        // Initializes an ArrayDeque
-        Deque<Path> stack = new ArrayDeque<>();
 
         // Push the directory paths to the stack
         stack.push(dirPath);
@@ -96,28 +95,21 @@ public class FileScanner {
     // Gets all temporary paths in /tmp directory
     public void cleanTempDirectory() {
         
-        Deque<Path> tempFileStack = new ArrayDeque<>();
-
-        tempFileStack.push(tempMediaDir);
+        // Using an ArrayDeque here, much faster parsing time. 
+        stack = new ArrayDeque<>();
 
         try(DirectoryStream<Path> files = Files.newDirectoryStream(tempMediaDir)) {
             for(Path p : files) {
-                tempFileStack.push(p);
-                // Logs file added to stack here
-            }
+                stack.push(p);
 
-            for(Path f : files) {
-                System.out.println(f);
-                //Files.delete(f);
-                // TEST THIS FIRST BEFORE UN-COMMENTING THE LINE ABOVE.
-                // Log file deletion here to Log file
+                System.out.println("Deleting file: " + p);
+                Files.delete(p);
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
+    // Simple boolean to check if file ends with a specific extension from a custom list of extensions. 
     private static boolean isMediaFile(Path path) {
         if (!Files.isRegularFile(path)) {
             return false;
@@ -133,6 +125,7 @@ public class FileScanner {
         return false;
     }
 
+    // Transfers to and from a location (in this case the NAS), specify your path and then destination. 
     public void nasTransfer(String path, String destination) {
 
         try {
@@ -189,17 +182,6 @@ public class FileScanner {
     //         e.printStackTrace();
     //     }
     // }
-
-    public long getFileSize(String file) {
-
-        long sizeOfFile = file.length();
-
-        return sizeOfFile;
-    }
-
-    public long getExpectedFileSize(Path nasPath) throws IOException {
-        return Files.size(nasPath);
-    }
 
     public String getMediaFileName(String file) {
         Path sourcePath = Paths.get(file);

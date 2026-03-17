@@ -2,7 +2,7 @@ package com.loganv308;
 
 import java.util.logging.Logger;
 
-// Log Factory class
+// Logger Factory class
 public class LoggerFactory {
     
     public static Logger initLogger() {
