@@ -28,10 +28,19 @@ public class SpaceSavingCalculator {
     public Double getExpectedFileSize(Path nasPath) {
         try {
             long bytes = Files.size(nasPath);
+            
             spaceSaveValue += bytes / (1024.0 * 1024.0 * 1024.0);
+
+            
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return Math.floor(spaceSaveValue * 100) / 100;
+    }
+
+    public Double spaceSaved(Double initialVal, Double localVal) {
+        spaceSaveValue = initialVal - localVal;
+        
         return spaceSaveValue;
     }
 

@@ -87,35 +87,50 @@ public class Runner extends Thread {
                     String fileName = i.getKey();
                     Path nasOriginalPath = i.getValue();
 
-                    Double fileSize = ssc.getExpectedFileSize(nasOriginalPath);
+                    try {
+                        Double nasFileSize = ssc.getExpectedFileSize(nasOriginalPath);
                     
-                    // Formatted String, this puts the temp directory string and filename together.
-                    String formattedLocalFile = tempDirString + "\\" + fileName;
-                    
-                    // Transfers the file from the NAS.
-                    fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
+                        System.out.println("NAS File Size: " + nasFileSize);
+                        
+                        // Formatted String, this puts the temp directory string and filename together.
+                        String formattedLocalFile = tempDirString + "\\" + fileName;
+                        
+                        // Transfers the file from the NAS.
+                        fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
 
-                    System.out.println("Copy complete for: " + fileName);
-                    System.out.println("Re-encoding starting for " + fileName + " in progress...");
+                        System.out.println("Copy complete for: " + fileName);
+                        System.out.println("Re-encoding starting for " + fileName + " in progress...");
 
-                    // Re-encoding logic for the local file.
-                    String outputEncodedPath = enc.reEncode(formattedLocalFile);
+                        // Re-encoding logic for the local file.
+                        String outputEncodedPath = enc.reEncode(formattedLocalFile);
 
-                    System.out.println("Encoding complete for: " + formattedLocalFile);
-                    System.out.println("Copying back to NAS...");
+                        Double localFilePathSize = ssc.getExpectedFileSize(Path.of(outputEncodedPath));
 
-                    // Transfers the file back to the NAS using the new encoded file, and original NAS path. 
-                    fs.nasTransfer(outputEncodedPath, nasOriginalPath.toString());
+                        Double totalSaved = ssc.spaceSaved(nasFileSize, localFilePathSize);
 
-                    // Sleep for 10 minutes before re-scanning NAS. 
-                    Thread.sleep(600000);
+                        ssc.storeValue(totalSaved, ssc);
+
+                        System.out.println("Encoding complete for: " + formattedLocalFile);
+                        System.out.println("Space saved: " + totalSaved);
+                        System.out.println("Copying back to NAS...");
+
+                        // Transfers the file back to the NAS using the new encoded file, and original NAS path. 
+                        fs.nasTransfer(outputEncodedPath.toString(), nasOriginalPath.toString());
+
+                        // Sleep for 10 minutes before re-scanning NAS. 
+                        Thread.sleep(600000);
+                        
+                    } catch (RuntimeException e) {
+                        System.err.println("Skipping file due to error: " + fileName);
+                        System.err.println("Reason: " + e.getMessage());
+                    }
                 }
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (IOException e) {
                 System.out.println("File not found.");
-            }
+            } 
         }   
     }
 }

@@ -263,16 +263,16 @@ public class Encoder {
 
 // InputStream class. Used for FFMPEG methods. 
 class InputStreamConsumer implements Runnable {
-        private InputStream inputStream;
-        private String type;
-        private StringBuilder output = new StringBuilder();
+    private InputStream inputStream;
+    private String type;
+    private StringBuilder output = new StringBuilder();
 
-        public InputStreamConsumer(InputStream inputStream, String type) {
-            this.inputStream = inputStream;
-            this.type = type;
-        }
+    public InputStreamConsumer(InputStream inputStream, String type) {
+        this.inputStream = inputStream;
+        this.type = type;
+    }
 
-        public void run() {
+    public void run() {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -284,7 +284,7 @@ class InputStreamConsumer implements Runnable {
         }
     }
 
-        public String getOutput() {
-            return output.toString();
-        }
+    public String getOutput() {
+        return output.toString();
     }
+}
