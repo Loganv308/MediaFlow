@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 // import io.github.cdimascio.dotenv.Dotenv;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import com.loganv308.cache.PersistentCache;
 
@@ -19,8 +20,9 @@ public class Runner extends Thread {
 
     private static utils ut = new utils();
     private static Encoder enc = new Encoder();
-    private static String tempDirString = "C:\\tmp\\nascopiestest\\";
     private static FileScanner fs = new FileScanner();
+    private static Logger logger = LoggerFactory.initLogger();
+    private static String tempDirString = "C:\\tmp\\nascopiestest\\";
     private static SpaceSavingCalculator ssc = new SpaceSavingCalculator(0.0);
 
     public static void main(String[] args) {
@@ -43,7 +45,7 @@ public class Runner extends Thread {
                     }
                     // Check if NAS media path is accessible 
                     if(!Files.exists(Paths.get("Y:\\Test"))) {
-                        System.out.println("NAS Media path not found, retrying in 10 minutes...");
+                        LoggerFactory.logInfo("NAS Media path not found, retrying in 10 minutes...");
                         try {
                             Thread.sleep(600000); // Sleep for 10 minutes
                         } catch (InterruptedException e) {
@@ -117,6 +119,9 @@ public class Runner extends Thread {
                         // Transfers the file back to the NAS using the new encoded file, and original NAS path. 
                         fs.nasTransfer(outputEncodedPath.toString(), nasOriginalPath.toString());
 
+                        //
+                        LoggerFactory.logInfo("Rescanning in 10 minutes...");
+
                         // Sleep for 10 minutes before re-scanning NAS. 
                         Thread.sleep(600000);
                         
@@ -129,7 +134,7 @@ public class Runner extends Thread {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (IOException e) {
-                System.out.println("File not found.");
+                LoggerFactory.logError("File not found.");
             } 
         }   
     }

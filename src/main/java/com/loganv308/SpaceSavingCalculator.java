@@ -12,44 +12,49 @@ public class SpaceSavingCalculator {
     // Class attribute(s)
     Double spaceSaveValue;
     
-    // Constructor
+    // Default Constructor, requires a value to be passed in.
     SpaceSavingCalculator(Double spaceSaveValue){
         this.spaceSaveValue = 0.0;
     }
 
+    // ----------------- Getter -----------------
     public Double getSpaceSaveValue() {
         return spaceSaveValue;
     }
 
+    // ----------------- Setter -----------------
     public void setSpaceSaveValue(Double spaceSaveValue) {
         this.spaceSaveValue = spaceSaveValue;
     }
 
+    // Grabs the expected file size and transforms it to GB
     public Double getExpectedFileSize(Path nasPath) {
         try {
             long bytes = Files.size(nasPath);
             
             spaceSaveValue += bytes / (1024.0 * 1024.0 * 1024.0);
 
-            
         } catch (IOException e) {
             e.printStackTrace();
         }
         return Math.floor(spaceSaveValue * 100) / 100;
     }
 
+    // Calculates total space saved.
     public Double spaceSaved(Double initialVal, Double localVal) {
         spaceSaveValue = initialVal - localVal;
         
         return spaceSaveValue;
     }
 
+    // Stores the value within TotalSaved.json file. 
     public void storeValue(Double fileSize, SpaceSavingCalculator val) {
         ObjectMapper om = new ObjectMapper();
 
-        // Used for pretty printing
+        // SerializationFeature is used for pretty printing
         om.enable(SerializationFeature.INDENT_OUTPUT);
 
+        // Try creating the new file, displays IOException error if it doesn't work. 
         try {
             File file = new File("TotalSaved.json");
             
