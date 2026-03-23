@@ -24,7 +24,7 @@ public class LoggerFactory {
                         .map(f -> f.getClassName())
                         .orElse("UnknownClass"));
 
-        return buildLogger(callerClassName, callerClassName + ".log");
+        return buildLogger(callerClassName, "Logs/" + callerClassName + ".log");
     }
 
     // Builds and configures the logger with a FileHandler

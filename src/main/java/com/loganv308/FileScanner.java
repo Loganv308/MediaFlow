@@ -25,8 +25,8 @@ public class FileScanner {
 
     private static Deque<Path> stack = new ArrayDeque<Path>();
 
-    // Temporary media directory. 
-    private static final Path tempMediaDir = ut.getOS().contains("win") ? Paths.get("C:/tmp/nascopiestest/") : Paths.get("/tmp/nascopiestest/");
+    private static final PathConfig paths = ut.configurePaths();
+    private static final Path tempMediaDir = paths.tempDir;
 
     // This method gets all media from the specified directory. We get all movies in this case.
     // Mapping will show up as follows:

@@ -1,16 +1,11 @@
 package com.loganv308;
 
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class utils {
-    // Retrieves OS of whatever host this program is running on. 
-    public String getOS() {
-        // Gets the property os.name and converts it to lowercase. This is a system variable. 
-        return System.getProperty("os.name").toLowerCase();
-    }
-    
     // Retrieves todays date
     public LocalDate getDate() {
         LocalDate today = LocalDate.now();
@@ -25,5 +20,27 @@ public class utils {
 
         // Returns formatted time
         return LocalDateTime.now().format(dtf);
+    }
+
+    public PathConfig configurePaths() {
+        String os = System.getProperty("os.name").toLowerCase();
+
+        if (os.contains("win")) {
+            return new PathConfig(
+                Path.of("Y:\\TestData\\Test - IOExceptions"),
+                Path.of("C:\\Temp\\nascopiestest\\"),
+                ".\\ffmpeg\\ffmpeg.exe",
+                true
+            );
+        } else if (os.contains("nix") || os.contains("nux") || os.contains("mac")) {
+            return new PathConfig(
+                Path.of("/mnt/NASMedia/TestData/Test - IOExceptions"),
+                Path.of("/tmp/nascopiestest/"),
+                "ffmpeg",
+                false
+            );
+        } else {
+            throw new UnsupportedOperationException("Unsupported OS: " + os);
+        }
     }
 }

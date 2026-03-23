@@ -22,55 +22,50 @@ public class Runner extends Thread {
     private static Encoder enc = new Encoder();
     private static FileScanner fs = new FileScanner();
     private static Logger logger = LoggerFactory.initLogger();
-    private static String tempDirString = "C:\\tmp\\nascopiestest\\";
     private static SpaceSavingCalculator ssc = new SpaceSavingCalculator(0.0);
 
+    // Resolved at runtime
+    private static Path nasRoot;
+    private static String tempDirString;
+
+    /**
+     * Detects the current OS and configures file paths accordingly.
+     * @throws UnsupportedOperationException if the OS is not supported.
+     */
     public static void main(String[] args) {
 
         // Cache class object call
         PersistentCache persistentCache = new PersistentCache();
-        
         Runtime.getRuntime().addShutdownHook(new Thread(persistentCache::save));
+
+        ut.configurePaths();
 
         while(true) {
             try {
-                Path nasRoot = Paths.get("");
+                Files.createDirectories(Paths.get(tempDirString));
 
-                // Determine OS and set paths accordingly
-                if(ut.getOS().contains("win")) {
-
-                    // If the temp directory doesn't exist, create it
-                    if(!Files.exists(Paths.get(tempDirString))) {
-                        Files.createDirectories(Paths.get(tempDirString));
-                    }
-                    // Check if NAS media path is accessible 
-                    if(!Files.exists(Paths.get("Y:\\Test"))) {
-                        LoggerFactory.logInfo("NAS Media path not found, retrying in 10 minutes...");
-                        try {
-                            Thread.sleep(600000); // Sleep for 10 minutes
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+                // If the temp directory doesn't exist, create it
+                if(!Files.exists(nasRoot)) {
+                    LoggerFactory.logInfo("NAS Media path not accessible, retrying in 10 minutes...");
+                    try {
+                        Thread.sleep(600000); // Sleep for 10 minutes
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         return;
-                    } else {
-                        nasRoot = Paths.get("Y:\\Test");
                     }
-                // Else if OS == Linux or Mac
-                } else if(ut.getOS().contains("nix") || ut.getOS().contains("nux") || ut.getOS().contains("mac")) {
-                    tempDirString = "/tmp/nascopiestest/";
-                    nasRoot = Paths.get("Y:\\Test");
+                    continue;
                 }
 
-                System.out.println("Getting media...");
+                LoggerFactory.logInfo("Getting media...");
 
                 // Main NAS Index Map, runs against the NAS and utilizes the Cache. 
                 Map<String, Path> nasIndex = fs.indexAllMedia(nasRoot, persistentCache.getCache());
 
-                System.out.println("Size of list: " + nasIndex.size());
+                LoggerFactory.logInfo("Size of list: " + nasIndex.size());
 
                 // Checks if NAS list is empty.
                 if (nasIndex.isEmpty()) {
-                    System.out.println("No media found, retrying in 10 minutes...");
+                    LoggerFactory.logInfo("No media found, retrying in 10 minutes...");
 
                     Thread.sleep(600000); // Sleep for 10 minutes
 
@@ -78,7 +73,7 @@ public class Runner extends Thread {
                 }
 
                 // Logs number of files needing re-encode
-                System.out.println("Files needing re-encode: " + nasIndex.size());
+                LoggerFactory.logInfo("Files needing re-encode: " + nasIndex.size());
                 
                 /** 
                 Deletes all files in the C:/tmp/nascopiestest/ to ensure no duplicates and always fresh copies of re-encoded media. 
@@ -92,16 +87,16 @@ public class Runner extends Thread {
                     try {
                         Double nasFileSize = ssc.getExpectedFileSize(nasOriginalPath);
                     
-                        System.out.println("NAS File Size: " + nasFileSize);
+                        LoggerFactory.logInfo("NAS File Size: " + nasFileSize);
                         
                         // Formatted String, this puts the temp directory string and filename together.
                         String formattedLocalFile = tempDirString + "\\" + fileName;
                         
                         // Transfers the file from the NAS.
-                        fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
+                        // fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
 
-                        System.out.println("Copy complete for: " + fileName);
-                        System.out.println("Re-encoding starting for " + fileName + " in progress...");
+                        LoggerFactory.logInfo("Copy complete for: " + fileName);
+                        LoggerFactory.logInfo("Re-encoding starting for " + fileName + " in progress...");
 
                         // Re-encoding logic for the local file.
                         String outputEncodedPath = enc.reEncode(formattedLocalFile);
@@ -112,18 +107,18 @@ public class Runner extends Thread {
 
                         ssc.storeValue(totalSaved, ssc);
 
-                        System.out.println("Encoding complete for: " + formattedLocalFile);
-                        System.out.println("Space saved: " + totalSaved);
-                        System.out.println("Copying back to NAS...");
+                        LoggerFactory.logInfo("Encoding complete for: " + formattedLocalFile);
+                        LoggerFactory.logInfo("Space saved: " + totalSaved);
+                        LoggerFactory.logInfo("Copying back to NAS...");
 
                         // Transfers the file back to the NAS using the new encoded file, and original NAS path. 
-                        fs.nasTransfer(outputEncodedPath.toString(), nasOriginalPath.toString());
+                        // fs.nasTransfer(outputEncodedPath.toString(), nasOriginalPath.toString());
 
                         //
                         LoggerFactory.logInfo("Rescanning in 10 minutes...");
 
                         // Sleep for 10 minutes before re-scanning NAS. 
-                        Thread.sleep(600000);
+                        // Thread.sleep(600000);
                         
                     } catch (RuntimeException e) {
                         System.err.println("Skipping file due to error: " + fileName);

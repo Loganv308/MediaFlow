@@ -18,8 +18,16 @@ public class Encoder {
     // ProcessBuilder object instance
     private static ProcessBuilder pb = null;
 
+    // Path config setup, makes it easier to grab the correct file path based on OS.
+    private static final PathConfig paths = ut.configurePaths();
+    private static String ffmpegBin = paths.ffmpegBin;
+
     // Main re-encoding method, will run a specific FFMPEG command to run against each media file needing re-encoding. 
     public String reEncode(String filePath) {
+        
+        // Normalize the filepath if Windows
+        filePath = paths.normalizePath(filePath);
+
         // Initialize process as NULL
         Process p = null;
 
@@ -30,12 +38,7 @@ public class Encoder {
         String formattedOutputString = filePath + "Reencoded - " + ut.getDate().toString() + fileExtension;
 
         try {
-
             System.out.println("Starting re-encode of: " + filePath + "\n");
-
-            String ffmpegBin = ut.getOS().contains("win") ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
-            
-            if(ut.getOS().contains("win")) filePath = filePath.replace("\\", "/");
 
             pb = new ProcessBuilder(
                 ffmpegBin, 
@@ -93,9 +96,11 @@ public class Encoder {
             }
 
         } catch (IOException e) {
-            System.err.println("IOException (File): " + e);
+            LoggerFactory.logError("IOException (File): " + e);
         } catch (InterruptedException e) {
-            System.err.println("Interrupted Exception: ");
+            LoggerFactory.logError("Interrupted Exception: " + e);
+        } catch (RuntimeException e) {
+            LoggerFactory.logError("Runtime Exception: " + e);
         }
 
         return formattedOutputString;
@@ -104,8 +109,9 @@ public class Encoder {
     // This function will get the media encoding of a specified path
     public static Encoding getMediaEncoding(Path filePath) {
         try {
-            // if OS == win then use ffmpeg executable in ffmpeg folder, otherwise use ffmpeg command via linux terminal. 
-            String ffmpegBin = ut.getOS().contains("win") ? "ffmpeg\\ffprobe.exe" : "ffprobe";
+
+            // Normalize the filepath if Windows
+            filePath = paths.normalizePath(filePath);
 
             // Convert to String from Path
             String filePathStr = filePath.toString();
@@ -167,11 +173,8 @@ public class Encoder {
     // Checks if media file is above 1080p resolution. 
     public boolean isAbove1080p(Path mediaFile) {
         try {
-            // if OS == win then use ffmpeg executable in ffmpeg folder, otherwise use ffmpeg command via linux terminal. 
-            String ffmpegBin = ut.getOS().contains("win") ? "ffmpeg\\ffprobe.exe" : "ffprobe";
-
-            // Convert to String from Path
-            String filePathStr = mediaFile.toString();
+            // Normalize the filepath if Windows
+            mediaFile = paths.normalizePath(mediaFile);
 
             // Process builder string
             pb = new ProcessBuilder(
@@ -180,7 +183,7 @@ public class Encoder {
                 "-select_streams", "v:0",
                 "-show_entries", "stream=height",
                 "-of", "default=noprint_wrappers=1:nokey=1",
-                filePathStr
+                mediaFile.toString()
             );
 
             // Starts process 
