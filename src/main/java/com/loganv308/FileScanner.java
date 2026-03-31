@@ -19,7 +19,7 @@ public class FileScanner {
     // Logger instance
     // private static Logger logger = new Logger();
 
-    private static final utils ut = new utils();
+    private static final Utils ut = new Utils();
 
     private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov", ".m2ts" };
 

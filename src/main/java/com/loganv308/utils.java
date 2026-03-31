@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public class utils {
+public class Utils {
     // Retrieves todays date
     public LocalDate getDate() {
         LocalDate today = LocalDate.now();

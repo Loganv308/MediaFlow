@@ -14,17 +14,8 @@ public class LoggerFactory {
     private static String DEFAULT_LOG_FILE = "runner.log";
     
     // Initialize logger method
-    public static Logger initLogger() {
-        // StackWalker walks the call stack and finds the caller's class name
-        String callerClassName = StackWalker
-                .getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
-                .walk(frames -> frames
-                        .skip(1) // Skip initLogger itself
-                        .findFirst()
-                        .map(f -> f.getClassName())
-                        .orElse("UnknownClass"));
-
-        return buildLogger(callerClassName, "Logs/" + callerClassName + ".log");
+    public static Logger initLogger(Class<?> className) {
+        return buildLogger(className.getName(), "Logs/" + className.getSimpleName() + ".log");
     }
 
     // Builds and configures the logger with a FileHandler

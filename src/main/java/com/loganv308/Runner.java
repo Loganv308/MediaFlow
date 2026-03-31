@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 // import io.github.cdimascio.dotenv.Dotenv;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import com.loganv308.cache.PersistentCache;
 
@@ -18,10 +17,9 @@ public class Runner extends Thread {
     // Media mount key in the .env file
     // private static final String mediaMount = dotenv.get("MEDIA_MOUNT");
 
-    private static utils ut = new utils();
+    private static Utils ut = new Utils();
     private static Encoder enc = new Encoder();
     private static FileScanner fs = new FileScanner();
-    private static Logger logger = LoggerFactory.initLogger();
     private static SpaceSavingCalculator ssc = new SpaceSavingCalculator(0.0);
 
     // Resolved at runtime
@@ -34,11 +32,16 @@ public class Runner extends Thread {
      */
     public static void main(String[] args) {
 
+        LoggerFactory.initLogger(Runner.class);
+
         // Cache class object call
         PersistentCache persistentCache = new PersistentCache();
         Runtime.getRuntime().addShutdownHook(new Thread(persistentCache::save));
 
-        ut.configurePaths();
+        PathConfig config = ut.configurePaths();
+
+        nasRoot = config.nasRoot;
+        tempDirString = config.tempDir.toString();
 
         while(true) {
             try {

@@ -13,7 +13,7 @@ public class Encoder {
     private static FileScanner fs = new FileScanner();
 
     // Utils objects instance
-    private static utils ut = new utils();
+    private static Utils ut = new Utils();
 
     // ProcessBuilder object instance
     private static ProcessBuilder pb = null;
