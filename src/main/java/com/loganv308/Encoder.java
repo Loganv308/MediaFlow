@@ -6,6 +6,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 
+import java.util.logging.Logger;
+
 import com.loganv308.enums.Encoding;
 
 public class Encoder {
@@ -21,6 +23,10 @@ public class Encoder {
     // Path config setup, makes it easier to grab the correct file path based on OS.
     private static final PathConfig paths = ut.configurePaths();
     private static String ffmpegBin = paths.ffmpegBin;
+    private static String ffprobeBin = paths.ffprobeBin;
+
+    // Initialize custom LoggerFactory 
+    private static Logger log = LoggerFactory.initLogger(Encoder.class);
 
     // Main re-encoding method, will run a specific FFMPEG command to run against each media file needing re-encoding. 
     public String reEncode(String filePath) {
@@ -38,7 +44,7 @@ public class Encoder {
         String formattedOutputString = filePath + "Reencoded - " + ut.getDate().toString() + fileExtension;
 
         try {
-            System.out.println("Starting re-encode of: " + filePath + "\n");
+            log.info("Starting re-encode of: " + filePath + "\n");
 
             pb = new ProcessBuilder(
                 ffmpegBin, 
@@ -55,7 +61,7 @@ public class Encoder {
             );
             
             // Assigned the processbuilder starting method to Process p;
-            System.out.println("Process Started..." + "\n");
+            log.info("Process Started..." + "\n");
             
             // Starts the process
             p = pb.start();
@@ -82,13 +88,13 @@ public class Encoder {
             String output = outputConsumer.getOutput().trim();
 
             // Print output
-            System.out.println("FFmpeg exited with code: " + exitCode);
+            log.info("FFmpeg exited with code: " + exitCode);
             if (!errors.isEmpty()) {
-                System.out.println("FFmpeg messages:\n" + errors);
+                log.info("FFmpeg messages:\n" + errors);
             }
 
-            System.out.println("FFmpeg exited with code: " + exitCode);
-            System.out.println("Output:\n" + output);
+            log.info("FFmpeg exited with code: " + exitCode);
+            log.info("Output:\n" + output);
 
             // Handle errors if FFmpeg failed
             if (exitCode != 0) {
@@ -96,11 +102,11 @@ public class Encoder {
             }
 
         } catch (IOException e) {
-            LoggerFactory.logError("IOException (File): " + e);
+            log.severe("IOException (File): " + e);
         } catch (InterruptedException e) {
-            LoggerFactory.logError("Interrupted Exception: " + e);
+            log.severe("Interrupted Exception: " + e);
         } catch (RuntimeException e) {
-            LoggerFactory.logError("Runtime Exception: " + e);
+            log.severe("Runtime Exception: " + e);
         }
 
         return formattedOutputString;
@@ -118,7 +124,7 @@ public class Encoder {
 
             // Gets the encoding of whichever file you direct it to. 
             pb = new ProcessBuilder(
-                ffmpegBin,
+                ffprobeBin,
                 "-v", "error",
                 "-select_streams", "v:0",
                 "-show_entries", "stream=codec_name",
@@ -151,9 +157,9 @@ public class Encoder {
             String output = outputConsumer.getOutput().trim();
 
             // Print output
-            System.out.println("FFmpeg exited with code: " + exitCode);
+            log.info("FFmpeg exited with code: " + exitCode);
             if (!errors.isEmpty()) {
-                System.out.println("FFmpeg messages:\n" + errors);
+                log.info("FFmpeg messages:\n" + errors);
             }
 
             // Handle errors if FFmpeg failed
@@ -165,7 +171,7 @@ public class Encoder {
             return fromEncoding(output);
 
         } catch (Exception e) {
-            System.err.println("Failed to probe encoding: " + filePath + " | " + e);
+            log.severe("Failed to probe encoding: " + filePath + " | " + e);
             return Encoding.UNKNOWN;
         }
     }
@@ -178,7 +184,7 @@ public class Encoder {
 
             // Process builder string
             pb = new ProcessBuilder(
-                ffmpegBin,
+                ffprobeBin,
                 "-v", "error",
                 "-select_streams", "v:0",
                 "-show_entries", "stream=height",
@@ -269,6 +275,7 @@ class InputStreamConsumer implements Runnable {
     private InputStream inputStream;
     private String type;
     private StringBuilder output = new StringBuilder();
+    private static Logger log = LoggerFactory.initLogger(InputStreamConsumer.class);
 
     public InputStreamConsumer(InputStream inputStream, String type) {
         this.inputStream = inputStream;
@@ -280,7 +287,7 @@ class InputStreamConsumer implements Runnable {
             String line;
             while ((line = br.readLine()) != null) {
                 output.append(line).append("\n");
-                System.out.println(type + "> " + line);
+                log.info(type + "> " + line);
             }
         } catch (IOException e) {
             e.printStackTrace();

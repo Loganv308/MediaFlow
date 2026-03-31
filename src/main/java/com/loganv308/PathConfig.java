@@ -6,12 +6,14 @@ class PathConfig {
     public final Path nasRoot;
     public final Path tempDir;
     public final String ffmpegBin;
+    public final String ffprobeBin;
     public final boolean isWindows;
 
-    public PathConfig(Path nasRoot, Path tempDir, String ffmpegBin, boolean isWindows) {
+    public PathConfig(Path nasRoot, Path tempDir, String ffmpegBin, String ffprobeBin, boolean isWindows) {
         this.nasRoot = nasRoot;
         this.tempDir = tempDir;
         this.ffmpegBin = ffmpegBin;
+        this.ffprobeBin = ffprobeBin;
         this.isWindows = isWindows;
     }
 

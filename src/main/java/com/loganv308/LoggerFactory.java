@@ -15,6 +15,20 @@ public class LoggerFactory {
     
     // Initialize logger method
     public static Logger initLogger(Class<?> className) {
+        Logger logger = Logger.getLogger(className.getName());
+
+        if (logger.getHandlers().length == 0) {
+            logger.setUseParentHandlers(false);
+
+            try {
+                FileHandler fileHandler = new FileHandler("Logs/" + className.getSimpleName() + ".log", true);
+                fileHandler.setFormatter(new SimpleFormatter());
+                logger.addHandler(fileHandler);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         return buildLogger(className.getName(), "Logs/" + className.getSimpleName() + ".log");
     }
 
@@ -40,19 +54,5 @@ public class LoggerFactory {
         }
 
         return logger;
-    }
-    
-    // ERROR logging, used for anything error related.
-    public static String logError(String errorMsg) {
-        LOGGER.severe(errorMsg);
-
-        return "ERROR: " + errorMsg;
-    }
-
-    // INFO logging, most commonly used for basic logs.
-    public static String logInfo(String logMsg) {
-        LOGGER.info(logMsg);
-
-        return "INFO: " + logMsg;
     }
 }
