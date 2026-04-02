@@ -89,7 +89,7 @@ public class Runner extends Thread {
 
                     try {
                         Double nasFileSize = ssc.getExpectedFileSize(nasOriginalPath);
-                    
+
                         log.info("NAS File Size: " + nasFileSize);
                         
                         // Formatted String, this puts the temp directory string and filename together.
@@ -106,7 +106,11 @@ public class Runner extends Thread {
 
                         Double localFilePathSize = ssc.getExpectedFileSize(Path.of(outputEncodedPath));
 
+                        System.out.println("localFilePathSize: " + localFilePathSize);
+
                         Double totalSaved = ssc.spaceSaved(nasFileSize, localFilePathSize);
+
+                        System.out.println("TOTALSAVED: " + totalSaved);
 
                         ssc.storeValue(totalSaved, ssc);
 

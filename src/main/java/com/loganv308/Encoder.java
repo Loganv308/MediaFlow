@@ -22,6 +22,8 @@ public class Encoder {
 
     // Path config setup, makes it easier to grab the correct file path based on OS.
     private static final PathConfig paths = ut.configurePaths();
+
+    // ffmpeg and ffprobe path setup based on OS. 
     private static String ffmpegBin = paths.ffmpegBin;
     private static String ffprobeBin = paths.ffprobeBin;
 

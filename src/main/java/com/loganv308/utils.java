@@ -26,6 +26,7 @@ public class Utils {
         return LocalDateTime.now().format(dtf);
     }
 
+    // Configures the paths based on OS, used in many other classes throughout this program. 
     public PathConfig configurePaths() {
         String os = System.getProperty("os.name").toLowerCase();
 

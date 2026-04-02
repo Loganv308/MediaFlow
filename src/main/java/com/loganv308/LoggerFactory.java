@@ -8,9 +8,6 @@ import java.util.logging.SimpleFormatter;
 // Logger Factory class
 public class LoggerFactory {
 
-    // Used throughout the class.
-    private static final Logger LOGGER = Logger.getLogger(LoggerFactory.class.getName());
-
     private static String DEFAULT_LOG_FILE = "runner.log";
     
     // Initialize logger method
