@@ -4,71 +4,106 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 public class SpaceSavingCalculator {
-    // Class attribute(s)
-    Double spaceSaveValue;
-    
-    // Default Constructor, requires a value to be passed in.
-    SpaceSavingCalculator(Double spaceSaveValue){
-        this.spaceSaveValue = 0.0;
+
+    // ── JSON-serialisable inner record ──────────────────────────────────────
+    public static class FileEntry {
+        @JsonProperty("file")         public String file;
+        @JsonProperty("originalGB")   public double originalGB;
+        @JsonProperty("encodedGB")    public double encodedGB;
+        @JsonProperty("savedGB")      public double savedGB;
+
+        public FileEntry() {}
+        public FileEntry(String file, double originalGB, double encodedGB, double savedGB) {
+            this.file       = file;
+            this.originalGB = originalGB;
+            this.encodedGB  = encodedGB;
+            this.savedGB    = savedGB;
+        }
     }
 
-    // ----------------- Getter -----------------
-    public Double getSpaceSaveValue() {
-        return spaceSaveValue;
+    // ── Top-level JSON structure ─────────────────────────────────────────────
+    public static class SavingsReport {
+        @JsonProperty("totalSpaceSavedGB") public double totalSpaceSavedGB = 0.0;
+        @JsonProperty("filesProcessed")    public int    filesProcessed    = 0;
+        @JsonProperty("skippedLarger")     public int    skippedLarger     = 0;
+        @JsonProperty("log")               public List<FileEntry> log      = new ArrayList<>();
     }
 
-    // ----------------- Setter -----------------
-    public void setSpaceSaveValue(Double spaceSaveValue) {
-        this.spaceSaveValue = spaceSaveValue;
+    // ── Instance state ───────────────────────────────────────────────────────
+    private final SavingsReport report;
+    private static final String JSON_PATH = "TotalSaved.json";
+    private static final ObjectMapper om   =
+        new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+
+    public SpaceSavingCalculator(double ignored) {
+        // Load existing report from disk so totals survive restarts
+        SavingsReport loaded = null;
+        File f = new File(JSON_PATH);
+        if (f.exists()) {
+            try { loaded = om.readValue(f, SavingsReport.class); }
+            catch (IOException e) { System.err.println("Could not load TotalSaved.json, starting fresh."); }
+        }
+        this.report = (loaded != null) ? loaded : new SavingsReport();
     }
 
-    // Grabs the expected file size and transforms it to GB
-    public Double getExpectedFileSize(Path nasPath) {
+    // ── File-size helper (does NOT mutate report) ────────────────────────────
+    /**
+     * Returns the size of a single file in GB. Pure utility — no side effects.
+     */
+    public double getFileSizeGB(Path path) {
         try {
-            long bytes = Files.size(nasPath);
-            
-            spaceSaveValue += bytes / (1024.0 * 1024.0 * 1024.0);
-
+            long bytes = Files.size(path);
+            double gb   = bytes / (1024.0 * 1024.0 * 1024.0);
+            return Math.floor(gb * 100) / 100.0;
         } catch (IOException e) {
             e.printStackTrace();
+            return 0.0;
         }
-        return Math.floor(spaceSaveValue * 100) / 100;
     }
 
-    // Calculates total space saved.
-    public Double spaceSaved(Double initialVal, Double localVal) {
-        spaceSaveValue = initialVal - localVal;
-        
-        return spaceSaveValue;
+    // ── Record a successful encode (saved space) ─────────────────────────────
+    /**
+     * Call this only when encodedGB < originalGB.
+     * Adds the entry to the log, updates totals, and persists to disk.
+     */
+    public void recordSaving(String fileName, double originalGB, double encodedGB) {
+        double saved = Math.floor((originalGB - encodedGB) * 100) / 100.0;
+
+        report.log.add(new FileEntry(fileName, originalGB, encodedGB, saved));
+        report.totalSpaceSavedGB = Math.floor((report.totalSpaceSavedGB + saved) * 100) / 100.0;
+        report.filesProcessed++;
+
+        persist();
     }
 
-    // Stores the value within TotalSaved.json file. 
-    public void storeValue(Double fileSize, SpaceSavingCalculator val) {
-        ObjectMapper om = new ObjectMapper();
+    // ── Record a skipped file (re-encode was larger) ─────────────────────────
+    public void recordSkipped(String fileName, double originalGB, double encodedGB) {
+        // Still log it for visibility, but savedGB will be 0 or negative
+        report.log.add(new FileEntry(fileName, originalGB, encodedGB, 0.0));
+        report.skippedLarger++;
 
-        // SerializationFeature is used for pretty printing
-        om.enable(SerializationFeature.INDENT_OUTPUT);
+        persist();
+    }
 
-        // Try creating the new file, displays IOException error if it doesn't work. 
+    // ── Getters for Runner ───────────────────────────────────────────────────
+    public double getTotalSavedGB()  { return report.totalSpaceSavedGB; }
+    public int    getFilesProcessed(){ return report.filesProcessed;    }
+    public int    getSkippedLarger() { return report.skippedLarger;     }
+
+    // ── Persist to disk ──────────────────────────────────────────────────────
+    private void persist() {
         try {
-            File file = new File("TotalSaved.json");
-            
-            om.writeValue(file, val);
-
-            System.out.println("JSON file created, total storage saved.");
-        } catch(IOException e) {
-            e.printStackTrace();
+            om.writeValue(new File(JSON_PATH), report);
+        } catch (IOException e) {
+            System.err.println("Failed to write TotalSaved.json: " + e.getMessage());
         }
     }
-
-    @Override
-    public String toString() {
-        return "SpaceSavingCalculator [spaceSaveValue=" + spaceSaveValue + "]";
-    }
-    
 }

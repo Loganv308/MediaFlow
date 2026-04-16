@@ -43,7 +43,8 @@ public class Encoder {
         String fileExtension = fs.getFileExtension(filePath);
 
         // Outputted file path being returned to the main process
-        String formattedOutputString = filePath + "Reencoded - " + ut.getDate().toString() + fileExtension;
+        String basePath = filePath.substring(0, filePath.lastIndexOf('.'));
+        String formattedOutputString = basePath + "_Reencoded_" + ut.getDate().toString() + fileExtension;
 
         try {
             log.info("Starting re-encode of: " + filePath + "\n");

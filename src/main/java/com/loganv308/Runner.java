@@ -83,55 +83,59 @@ public class Runner extends Thread {
                 */
                 fs.cleanTempDirectory();
                 
-                for(Map.Entry<String, Path> i : nasIndex.entrySet()) {
-                    String fileName = i.getKey();
-                    Path nasOriginalPath = i.getValue();
+                for (Map.Entry<String, Path> i : nasIndex.entrySet()) {
+                    String fileName        = i.getKey();
+                    Path   nasOriginalPath = i.getValue();
 
                     try {
-                        Double nasFileSize = ssc.getExpectedFileSize(nasOriginalPath);
+                        // ── 1. Measure original file on NAS ──────────────────────────────
+                        double nasFileGB = ssc.getFileSizeGB(nasOriginalPath);
+                        log.info("NAS file size: " + nasFileGB + " GB  (" + fileName + ")");
 
-                        log.info("NAS File Size: " + nasFileSize);
-                        
-                        // Formatted String, this puts the temp directory string and filename together.
+                        // ── 2. Copy from NAS to local temp ───────────────────────────────
                         String formattedLocalFile = tempDirString + "\\" + fileName;
-                        
-                        // Transfers the file from the NAS.
-                        fs.nasTransfer(i.getValue().toString(), formattedLocalFile);
+                        fs.nasTransfer(nasOriginalPath.toString(), formattedLocalFile);
+                        log.info("Copy complete: " + fileName);
 
-                        log.info("Copy complete for: " + fileName);
-                        log.info("Re-encoding starting for " + fileName + " in progress...");
-
-                        // Re-encoding logic for the local file.
+                        // ── 3. Re-encode locally ─────────────────────────────────────────
+                        log.info("Re-encoding: " + fileName);
                         String outputEncodedPath = enc.reEncode(formattedLocalFile);
 
-                        Double localFilePathSize = ssc.getExpectedFileSize(Path.of(outputEncodedPath));
+                        // ── 4. Measure re-encoded file ───────────────────────────────────
+                        double encodedGB = ssc.getFileSizeGB(Path.of(outputEncodedPath));
+                        log.info("Re-encoded size: " + encodedGB + " GB");
 
-                        System.out.println("localFilePathSize: " + localFilePathSize);
+                        // ── 5. Only write back if we actually saved space ────────────────
+                        if (encodedGB < nasFileGB) {
+                            double saved = nasFileGB - encodedGB;
+                            log.info("Space saved: " + saved + " GB — writing back to NAS.");
 
-                        Double totalSaved = ssc.spaceSaved(nasFileSize, localFilePathSize);
+                            ssc.recordSaving(fileName, nasFileGB, encodedGB);
 
-                        System.out.println("TOTALSAVED: " + totalSaved);
+                            // Uncomment when ready to write back:
+                            // fs.nasTransfer(outputEncodedPath, nasOriginalPath.toString());
 
-                        ssc.storeValue(totalSaved, ssc);
+                        } else {
+                            log.info("Re-encoded file is NOT smaller (" + encodedGB
+                                + " GB vs original " + nasFileGB
+                                + " GB) — keeping original, skipping write-back.");
 
-                        log.info("Encoding complete for: " + formattedLocalFile);
-                        log.info("Space saved: " + totalSaved);
-                        log.info("Copying back to NAS...");
+                            ssc.recordSkipped(fileName, nasFileGB, encodedGB);
+                            Files.deleteIfExists(Path.of(outputEncodedPath));
+                        }
 
-                        // Transfers the file back to the NAS using the new encoded file, and original NAS path. 
-                        // fs.nasTransfer(outputEncodedPath.toString(), nasOriginalPath.toString());
+                        // ── 6. Clean up local copy ───────────────────────────────────────
+                        Files.deleteIfExists(Path.of(formattedLocalFile));
 
+                        log.info("Total saved so far: " + ssc.getTotalSavedGB() + " GB");
                         log.info("Rescanning in 10 minutes...");
-
-                        // Sleep for 10 minutes before re-scanning NAS. 
                         Thread.sleep(600000);
-                        
+
                     } catch (RuntimeException e) {
                         log.severe("Skipping file due to error: " + fileName);
                         log.severe("Reason: " + e.getMessage());
                     }
                 }
-
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (IOException e) {

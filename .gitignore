@@ -3,3 +3,5 @@ media_cache.ser
 
 # Wildcard all logs files
 *.log
+*.log.lck
+*.json
