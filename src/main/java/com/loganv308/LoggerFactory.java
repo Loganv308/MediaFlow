@@ -8,7 +8,7 @@ import java.util.logging.SimpleFormatter;
 // Logger Factory class
 public class LoggerFactory {
 
-    private static String DEFAULT_LOG_FILE = "runner.log";
+    // private static String DEFAULT_LOG_FILE = "runner.log";
     
     // Initialize logger method
     public static Logger initLogger(Class<?> className) {

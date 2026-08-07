@@ -1,0 +1,12 @@
+.git
+target
+Logs
+ffmpeg
+scratch_nas
+scratch_temp
+media_cache.ser
+TotalSaved.json
+*.log
+*.log.lck
+.env
+.vscode

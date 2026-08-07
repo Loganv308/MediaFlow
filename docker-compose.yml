@@ -1,0 +1,39 @@
+# Requires the NVIDIA Container Toolkit on the host (nvidia-ctk runtime configure)
+# and a host GPU driver compatible with CUDA 12.6 — the base image's hevc_nvenc
+# needs a working NVIDIA runtime, not just Docker itself.
+services:
+  mediaflow:
+    build: .
+    container_name: mediaflow
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # These must be set here, not just baked into the Dockerfile's ENV —
+      # env_file below loads your whole .env (including the Windows paths
+      # meant for running the jar directly on the host), and any variable
+      # env_file sets overrides the image's Dockerfile ENV default for this
+      # container. Without this, the container tries to run the Windows
+      # ffmpeg.exe path from .env and every re-encode fails immediately.
+      NAS_ROOT: /nas
+      TEMP_DIR: /tmp/nas
+      FFMPEG_BIN: /usr/local/bin/ffmpeg
+      FFPROBE_BIN: /usr/local/bin/ffprobe
+    volumes:
+      - nas-data:/nas
+      - mediaflow-data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  nas-data:
+    driver_opts:
+      type: cifs
+      o: username=${NAS_USER},password=${NAS_PASS},vers=3.0,uid=0,gid=0
+      device: "//${NAS_HOST}/${NAS_SHARE}"
+  mediaflow-data:

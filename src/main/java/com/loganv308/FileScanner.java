@@ -13,72 +13,81 @@ import java.util.Map;
 
 import com.loganv308.cache.FileRecord;
 import com.loganv308.enums.Encoding;
+import com.loganv308.enums.JobState;
 
 public class FileScanner {
 
-    // Logger instance
-    // private static Logger logger = new Logger();
-
-    private static final Utils ut = new Utils();
-
     private static final String[] EXTENSIONS = { ".mp4", ".mkv", ".avi", ".mov", ".m2ts" };
 
-    private static Deque<Path> stack = new ArrayDeque<Path>();
+    private final Path tempMediaDir;
+    private final Encoder encoder;
 
-    private static final PathConfig paths = ut.configurePaths();
-    private static final Path tempMediaDir = paths.tempDir;
+    public FileScanner(PathConfig paths, Encoder encoder) {
+        this.tempMediaDir = paths.tempDir;
+        this.encoder = encoder;
+    }
 
     // This method gets all media from the specified directory. We get all movies in this case.
     // Mapping will show up as follows:
-    // - Map <FileName>, <pathToFile>
-    // This is later used in the cleanupDirectory() method. 
+    // - Map <NAS-relative path>, <pathToFile>
+    // Keys are the file's path relative to dirPath (forward-slash normalized), so files
+    // are uniquely identified across subfolders even when basenames collide.
     public Map<String, Path> indexAllMedia(Path dirPath, Map<String, FileRecord> cache) {
 
         // Initial map to append results too
         Map<String, Path> index = new HashMap<>();
 
-        // Push the directory paths to the stack
+        // Local stack, scoped to this call only.
+        Deque<Path> stack = new ArrayDeque<>();
         stack.push(dirPath);
-        
+
         // While the stack does not contain file paths.
-        while(!stack.isEmpty()) {
-            
+        while (!stack.isEmpty()) {
+
             // The dir variable equals stack.pop() and removes the most recently added path from the stack.
-            // Will always process the deepest directory first, then go up from there. 
-            // Equal to Path dir = stack.removeFirst();
+            // Will always process the deepest directory first, then go up from there.
             Path dir = stack.pop();
             System.out.println("Processing directory: " + dir);
 
             // Opens directory listing for dir variable. Returns DirectoryStream that lazily iterates entries.
-            try(DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
                 // Iterates over each entry in the directory, each "p" is either a file or directory.
-                for(Path p : stream) {
+                for (Path p : stream) {
                     // If "p" is a directory...
-                    if(Files.isDirectory(p)) {
+                    if (Files.isDirectory(p)) {
                         System.out.println("Found subdirectory: " + p);
-                        // It will add the directory to the stack. (Y:\movies\movieTitle) 
+                        // It will add the directory to the stack. (Y:\movies\movieTitle)
                         stack.push(p);
                     // Else, if the file is a media file...
                     } else if (FileScanner.isMediaFile(p)) {
 
-                        String key = p.getFileName().toString();
+                        String key = dirPath.relativize(p).toString().replace("\\", "/");
                         long currentLastModified = Files.getLastModifiedTime(p).toMillis();
                         FileRecord cached = cache.get(key);
 
-                        // If cached and file hasn't changed, reuse it
+                        // If cached and file hasn't changed, decide whether it's done or still owes work.
                         if (cached != null && cached.getLastModified() == currentLastModified) {
-                            System.out.println("Cache hit, skipping: " + key);
-                            index.putIfAbsent(key, p);
+                            JobState state = cached.getState();
+                            if (state == JobState.WRITTEN_BACK || state == JobState.ALREADY_COMPLIANT
+                                || state == JobState.SKIPPED_NOT_SMALLER) {
+                                System.out.println("Cache hit, already handled, skipping: " + key);
+                            } else {
+                                System.out.println("Cache hit, still owes work, re-queueing: " + key);
+                                index.putIfAbsent(key, p);
+                            }
                             continue;
                         }
-                        Encoding enc = Encoder.getMediaEncoding(p);
+
+                        Encoding enc = encoder.getMediaEncoding(p);
                         if (enc != Encoding.HEVC && enc != Encoding.H265) {
                             index.putIfAbsent(key, p);
-                            cache.put(key, new FileRecord(p, currentLastModified));
+                            cache.put(key, new FileRecord(p, key, currentLastModified));
                         } else {
                             System.out.println(p + " is already HEVC...");
+                            FileRecord compliant = new FileRecord(p, key, currentLastModified);
+                            compliant.setState(JobState.ALREADY_COMPLIANT);
                             // Cache it so we don't re-check encoding next run
-                            cache.put(key, new FileRecord(p, currentLastModified));
+                            cache.put(key, compliant);
                         }
                     }
                 }
@@ -90,18 +99,12 @@ public class FileScanner {
         System.out.println("Indexing complete. Total media files: " + index.size());
         // Returns the index map
         return index;
-    } 
-    
+    }
+
     // Gets all temporary paths in /tmp directory
     public void cleanTempDirectory() {
-        
-        // Using an ArrayDeque here, much faster parsing time. 
-        stack = new ArrayDeque<>();
-
-        try(DirectoryStream<Path> files = Files.newDirectoryStream(tempMediaDir)) {
-            for(Path p : files) {
-                stack.push(p);
-
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(tempMediaDir)) {
+            for (Path p : files) {
                 System.out.println("Deleting file: " + p);
                 Files.delete(p);
             }
@@ -109,7 +112,8 @@ public class FileScanner {
             e.printStackTrace();
         }
     }
-    // Simple boolean to check if file ends with a specific extension from a custom list of extensions. 
+
+    // Simple boolean to check if file ends with a specific extension from a custom list of extensions.
     private static boolean isMediaFile(Path path) {
         if (!Files.isRegularFile(path)) {
             return false;
@@ -125,73 +129,24 @@ public class FileScanner {
         return false;
     }
 
-    // Transfers to and from a location (in this case the NAS), specify your path and then destination. 
-    public void nasTransfer(String path, String destination) {
+    // Transfers to and from a location (in this case the NAS), specify your path and then destination.
+    public void nasTransfer(String path, String destination) throws IOException {
+        System.out.println("Starting copy from: " + Paths.get(path) + " to: " + Paths.get(destination) + "...");
 
-        try {
-            System.out.println("Starting copy from: " + Paths.get(path) + " to: " + Paths.get(destination) + "...");
+        Files.copy(Paths.get(path), Paths.get(destination), StandardCopyOption.REPLACE_EXISTING);
 
-            Files.copy(Paths.get(path), Paths.get(destination), StandardCopyOption.REPLACE_EXISTING);
-
-            System.out.println("File successfully copied to Target: " + Paths.get(destination).toString());
-
-        } catch (IOException e) {
-            System.out.println("File not found: " + e);
-
-        }
+        System.out.println("File successfully copied to Target: " + Paths.get(destination).toString());
     }
 
-    // Most likely unneccessary, refer to cleanupTempDirectory(). This has been refactored. 
-    // public void cleanupDirectory(Map<String, Path> nasIndex) {        
-
-    //     // List of files in the tempMediaDir
-    //     try (Stream<Path> files = Files.list(tempMediaDir)) {
-    //         files
-    //             // Filters based on another Method if it's a media file (Follows extension rule)    
-    //             .filter(FileScanner::isMediaFile)
-    //             // For each file in that list...
-    //             .forEach(tempPath -> {
-    //                 try {
-    //                     // Grabs the file name from the passed in Map
-    //                     Path nasPath = nasIndex.get(tempPath.getFileName().toString());
-
-    //                     System.out.println("NASIndex: " + nasIndex);
-    //                     // If the path is null, exits the method
-    //                     if (nasPath == null) {
-    //                         System.err.println("No NAS match for: " + tempPath);
-    //                         return;
-    //                     }
-    //                     // Expected file path (On the NAS)
-    //                     long expected = Files.size(nasPath);
-    //                     // Actual file path (Local copy)
-    //                     long actual = Files.size(tempPath);
-
-    //                     System.out.println(expected + " | " + actual);
-
-    //                     // If the nas file isn't the same size as the actual path...
-    //                     if (expected != actual) {
-    //                         // Delete the file, prevents inconsistencies if interupted. 
-    //                         // Files.delete(tempPath);
-    //                         System.out.println("Deleted (incomplete copy): " + tempPath);
-    //                     }
-    //                 } catch (IOException e) {
-    //                     System.err.println("Failed to process: " + e);
-    //                 }
-    //             });
-    //     } catch (IOException e) {
-    //         e.printStackTrace();
-    //     }
-    // }
-
-    public String getMediaFileName(String file) {
+    // Grabs only the file name of the media file
+    public static String getMediaFileName(String file) {
         Path sourcePath = Paths.get(file);
 
-        String fileName = sourcePath.getFileName().toString();
-
-        return fileName;
+        return sourcePath.getFileName().toString();
     }
 
-    public String getFileExtension(String fileName) {
+    // Grabs the file extension
+    public static String getFileExtension(String fileName) {
         if (fileName == null) {
             return null;
         }
@@ -200,7 +155,7 @@ public class FileScanner {
         if (dotIndex >= 0) {
             return fileName.substring(dotIndex);
         }
-        
+
         return "No file extension...";
     }
 }
