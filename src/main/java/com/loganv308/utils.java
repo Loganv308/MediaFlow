@@ -53,16 +53,11 @@ public class Utils {
             throw new UnsupportedOperationException("Unsupported OS: " + os);
         }
 
-        String defaultNasRoot = isWindows ? "W:\\TestData" : "/mnt/NASMedia/TestData";
-        String defaultTempDir = isWindows ? "C:\\Temp\\nas\\" : "/tmp/nas/";
-        String defaultFfmpeg  = isWindows ? ".\\ffmpeg\\ffmpeg.exe" : "ffmpeg";
-        String defaultFfprobe = isWindows ? ".\\ffmpeg\\ffprobe.exe" : "ffprobe";
-
         return new PathConfig(
-            Path.of(dotenv.get("NAS_ROOT", defaultNasRoot)),
-            Path.of(dotenv.get("TEMP_DIR", defaultTempDir)),
-            dotenv.get("FFMPEG_BIN", defaultFfmpeg),
-            dotenv.get("FFPROBE_BIN", defaultFfprobe),
+            Path.of(dotenv.get("NAS_ROOT")),
+            Path.of(dotenv.get("TEMP_DIR")),
+            dotenv.get("FFMPEG_BIN"),
+            dotenv.get("FFPROBE_BIN"),
             isWindows
         );
     }
