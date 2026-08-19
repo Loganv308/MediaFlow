@@ -36,9 +36,10 @@ public class Utils {
         Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
         PathConfig pathConfig = buildPathConfig(dotenv);
+        DbConfig dbConfig = buildDbConfig(dotenv);
         long scanIntervalMillis = parseScanIntervalMillis(dotenv);
 
-        return new AppConfig(pathConfig, scanIntervalMillis);
+        return new AppConfig(pathConfig, dbConfig, scanIntervalMillis);
     }
 
     // Configures the paths based on OS, with .env overrides layered on top.
@@ -59,6 +60,16 @@ public class Utils {
             dotenv.get("FFMPEG_BIN"),
             dotenv.get("FFPROBE_BIN"),
             isWindows
+        );
+    }
+
+    private DbConfig buildDbConfig(Dotenv dotenv) {
+        return new DbConfig(
+            dotenv.get("DB_HOST"),
+            Integer.parseInt(dotenv.get("DB_PORT")),
+            dotenv.get("DB_NAME"),
+            dotenv.get("DB_USER"),
+            dotenv.get("DB_PASSWORD")
         );
     }
 

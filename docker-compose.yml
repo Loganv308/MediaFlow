@@ -19,6 +19,7 @@ services:
       TEMP_DIR: /tmp/nas
       FFMPEG_BIN: /usr/local/bin/ffmpeg
       FFPROBE_BIN: /usr/local/bin/ffprobe
+
     volumes:
       - nas-data:/nas
       - mediaflow-data:/data

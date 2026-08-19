@@ -6,6 +6,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import com.loganv308.enums.Encoding;
@@ -111,7 +115,7 @@ public class Encoder {
         boolean needsHvc1Tag = fileExtension != null
             && (fileExtension.equalsIgnoreCase(".mp4") || fileExtension.equalsIgnoreCase(".mov"));
 
-        java.util.List<String> command = new java.util.ArrayList<>(java.util.List.of(
+        List<String> command = new ArrayList<>(List.of(
             ffmpegBin,
             "-i", filePath,
             "-c:v", "hevc_nvenc",
@@ -119,10 +123,25 @@ public class Encoder {
             "-cq", "28",
             "-rc", "vbr",
             "-filter_complex", "[0:v]scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease[outv]",
-            "-map", "[outv]",
-            "-map", "0:a?",
-            "-c:a", "copy"
+            "-map", "[outv]"
         ));
+
+        // Map only audio streams that actually have valid parameters. Some source files
+        // (particularly .m2ts remuxes) contain a malformed extra audio stream — e.g. an
+        // AC-3 track reporting 0 channels/no sample rate — and blindly copying every audio
+        // stream via "0:a?" makes ffmpeg fail to write a header for that one bad stream,
+        // which aborts the entire encode (the whole file, not just that track).
+        List<String> validAudioStreams = getValidAudioStreamIndexes(filePath);
+        if (validAudioStreams.isEmpty()) {
+            log.warning("No valid audio streams found for " + filePath + " — output will have no audio.");
+        } else {
+            for (String streamIndex : validAudioStreams) {
+                command.add("-map");
+                command.add("0:" + streamIndex);
+            }
+            command.add("-c:a");
+            command.add("copy");
+        }
 
         if (needsHvc1Tag) {
             command.add("-tag:v");
@@ -132,6 +151,76 @@ public class Encoder {
         command.add(formattedOutputString);
 
         return new ProcessBuilder(command);
+    }
+
+    // Returns the absolute stream indexes (e.g. "3") of audio streams with a valid,
+    // non-zero channel count. Falls back to mapping all audio streams ("0:a?" via an
+    // empty list being treated the same as "couldn't determine") only if the probe
+    // itself fails — a probe failure shouldn't silently drop every audio track.
+    // Deduplicated: some transport-stream files (e.g. .m2ts with multiple programs)
+    // have ffprobe list the same stream more than once.
+    private List<String> getValidAudioStreamIndexes(String filePath) {
+        Set<String> valid = new LinkedHashSet<>();
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                ffprobeBin,
+                "-v", "error",
+                "-select_streams", "a",
+                "-show_entries", "stream=index,channels",
+                "-of", "csv=p=0",
+                filePath
+            );
+
+            Process p = pb.start();
+            InputStreamConsumer outputConsumer = new InputStreamConsumer(p.getInputStream(), "OUTPUT");
+            Thread outputThread = new Thread(outputConsumer);
+            outputThread.start();
+
+            InputStreamConsumer errorConsumer = new InputStreamConsumer(p.getErrorStream(), "ERROR");
+            Thread errorThread = new Thread(errorConsumer);
+            errorThread.start();
+
+            int exitCode = p.waitFor();
+            errorThread.join();
+            outputThread.join();
+
+            if (exitCode != 0) {
+                log.warning("Could not probe audio streams for " + filePath
+                    + ", falling back to mapping all audio streams: " + errorConsumer.getOutput().trim());
+                valid.add("a?");
+                return new ArrayList<>(valid);
+            }
+
+            for (String line : outputConsumer.getOutput().trim().split("\\R")) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                String[] parts = line.split(",");
+                if (parts.length != 2) {
+                    continue;
+                }
+                try {
+                    String streamIndex = parts[0].trim();
+                    int channels = Integer.parseInt(parts[1].trim());
+                    if (channels > 0) {
+                        valid.add(streamIndex);
+                    } else {
+                        log.warning("Skipping malformed audio stream " + streamIndex
+                            + " (0 channels) in " + filePath);
+                    }
+                } catch (NumberFormatException e) {
+                    log.warning("Could not parse audio stream info line '" + line + "' for " + filePath);
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warning("Failed to probe audio streams for " + filePath
+                + ", falling back to mapping all audio streams: " + e);
+            valid.add("a?");
+        }
+        return new ArrayList<>(valid);
     }
 
     // This function will get the media encoding of a specified path

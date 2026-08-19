@@ -25,14 +25,19 @@ public class Runner {
         AppConfig config = new Utils().loadConfig();
 
         Encoder encoder = new Encoder(config.pathConfig);
-        FileScanner fileScanner = new FileScanner(config.pathConfig, encoder);
-        SpaceSavingCalculator ssc = new SpaceSavingCalculator(0.0);
+        Database database = new Database(config.dbConfig);
+        FileScanner fileScanner = new FileScanner(config.pathConfig, encoder, database);
+        SpaceSavingCalculator ssc = new SpaceSavingCalculator(database);
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
         Runnable cycle = () -> runCycle(config, fileScanner, encoder, ssc, persistentCache);
 
-        scheduler.scheduleWithFixedDelay(cycle, 0, config.scanIntervalMillis, TimeUnit.MILLISECONDS);
+        // Small delay before the very first scan — right after a restart, the CIFS mount to
+        // the NAS is freshly established and can be briefly unstable; starting immediately
+        // risks a burst of ffprobe calls hitting it while it's still settling.
+        long startupDelayMillis = TimeUnit.SECONDS.toMillis(30);
+        scheduler.scheduleWithFixedDelay(cycle, startupDelayMillis, config.scanIntervalMillis, TimeUnit.MILLISECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             scheduler.shutdown();
@@ -44,6 +49,7 @@ public class Runner {
                 scheduler.shutdownNow();
                 Thread.currentThread().interrupt();
             }
+            database.close();
         }));
     }
 
@@ -98,11 +104,13 @@ public class Runner {
 
         Map<String, FileRecord> cache = persistentCache.getCache();
         long lastModified = Files.getLastModifiedTime(nasOriginalPath).toMillis();
+        long fileSize = Files.size(nasOriginalPath);
         String localTempPath = tempDir.resolve(nasOriginalPath.getFileName().toString()).toString();
 
         FileRecord record = cache.computeIfAbsent(relativeKey,
             k -> new FileRecord(nasOriginalPath, relativeKey, lastModified));
         record.setLastModified(lastModified);
+        record.setFileSizeBytes(fileSize);
 
         try {
             // 1. Measure original file on NAS
@@ -131,6 +139,11 @@ public class Runner {
                 ssc.recordSaving(relativeKey, nasFileGB, encodedGB);
 
                 fileScanner.nasTransfer(outputEncodedPath, nasOriginalPath.toString());
+                // The write-back just changed the NAS file's own mtime/size — refresh the
+                // cached values to match, otherwise every future scan sees a "changed" file
+                // and needlessly re-probes (or worse, re-encodes) it forever.
+                record.setLastModified(Files.getLastModifiedTime(nasOriginalPath).toMillis());
+                record.setFileSizeBytes(Files.size(nasOriginalPath));
                 record.setState(JobState.WRITTEN_BACK);
                 log.info("Write-back complete: " + relativeKey);
             } else {

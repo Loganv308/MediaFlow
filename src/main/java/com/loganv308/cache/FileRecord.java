@@ -13,6 +13,7 @@ public class FileRecord implements Serializable {
     private String fullPath;
     private String nasRelativePath;
     private long lastModified;
+    private long fileSizeBytes;
     private JobState state;
     private int retryCount;
     private String lastError;
@@ -28,6 +29,13 @@ public class FileRecord implements Serializable {
 
     public long getLastModified() { return lastModified; }
     public void setLastModified(long lastModified) { this.lastModified = lastModified; }
+
+    // Secondary "did this file actually change" signal alongside lastModified —
+    // SMB/CIFS mounts can report slightly different mtimes across separate mount
+    // sessions (e.g. after a container restart), but file size is far more stable.
+    // A file is only treated as changed if BOTH mtime and size disagree.
+    public long getFileSizeBytes() { return fileSizeBytes; }
+    public void setFileSizeBytes(long fileSizeBytes) { this.fileSizeBytes = fileSizeBytes; }
 
     public String getFullPath() { return fullPath; }
     public String getFileName() { return fileName; }

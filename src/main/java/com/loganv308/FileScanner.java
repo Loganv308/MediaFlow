@@ -21,10 +21,12 @@ public class FileScanner {
 
     private final Path tempMediaDir;
     private final Encoder encoder;
+    private final Database database;
 
-    public FileScanner(PathConfig paths, Encoder encoder) {
+    public FileScanner(PathConfig paths, Encoder encoder, Database database) {
         this.tempMediaDir = paths.tempDir;
         this.encoder = encoder;
+        this.database = database;
     }
 
     // This method gets all media from the specified directory. We get all movies in this case.
@@ -63,10 +65,17 @@ public class FileScanner {
 
                         String key = dirPath.relativize(p).toString().replace("\\", "/");
                         long currentLastModified = Files.getLastModifiedTime(p).toMillis();
+                        long currentSize = Files.size(p);
                         FileRecord cached = cache.get(key);
 
                         // If cached and file hasn't changed, decide whether it's done or still owes work.
-                        if (cached != null && cached.getLastModified() == currentLastModified) {
+                        // "Unchanged" requires EITHER mtime or size to still match, not both — SMB/CIFS
+                        // mounts can report slightly different mtimes across separate mount sessions
+                        // (e.g. after a container restart), so mtime alone is too fragile a signal here.
+                        boolean unchanged = cached != null
+                            && (cached.getLastModified() == currentLastModified || cached.getFileSizeBytes() == currentSize);
+
+                        if (unchanged) {
                             JobState state = cached.getState();
                             if (state == JobState.WRITTEN_BACK || state == JobState.ALREADY_COMPLIANT
                                 || state == JobState.SKIPPED_NOT_SMALLER) {
@@ -79,12 +88,33 @@ public class FileScanner {
                         }
 
                         Encoding enc = encoder.getMediaEncoding(p);
-                        if (enc != Encoding.HEVC && enc != Encoding.H265) {
-                            index.putIfAbsent(key, p);
-                            cache.put(key, new FileRecord(p, key, currentLastModified));
+                        if (enc == Encoding.UNKNOWN) {
+                            // Probe failed (transient NAS/network hiccup, mount not fully settled, etc).
+                            // Do NOT treat this as "confirmed not HEVC" — leave it uncached so it gets
+                            // probed fresh next cycle instead of triggering a needless re-encode.
+                            System.out.println("Could not determine encoding for " + p + ", will retry next cycle.");
+                        } else if (enc != Encoding.HEVC && enc != Encoding.H265) {
+                            // Still not HEVC — but if we've already tried re-encoding this exact
+                            // file before and confirmed it wasn't worth it, don't blindly re-attempt
+                            // just because the local NAS-side cache lost track of it (e.g. a CIFS
+                            // mount remount shifting mtimes). Postgres remembers this permanently,
+                            // independent of whether the fragile local cache stayed in sync.
+                            if (database.wasPreviouslySkipped(key)) {
+                                System.out.println("Already confirmed not worth re-encoding, skipping: " + key);
+                                FileRecord skipped = new FileRecord(p, key, currentLastModified);
+                                skipped.setFileSizeBytes(currentSize);
+                                skipped.setState(JobState.SKIPPED_NOT_SMALLER);
+                                cache.put(key, skipped);
+                            } else {
+                                index.putIfAbsent(key, p);
+                                FileRecord record = new FileRecord(p, key, currentLastModified);
+                                record.setFileSizeBytes(currentSize);
+                                cache.put(key, record);
+                            }
                         } else {
                             System.out.println(p + " is already HEVC...");
                             FileRecord compliant = new FileRecord(p, key, currentLastModified);
+                            compliant.setFileSizeBytes(currentSize);
                             compliant.setState(JobState.ALREADY_COMPLIANT);
                             // Cache it so we don't re-check encoding next run
                             cache.put(key, compliant);

@@ -21,8 +21,12 @@ FROM jrottenberg/ffmpeg:8.1.2-nvidia2404
 # The base image sets `ENTRYPOINT ["ffmpeg"]` — clear it, this container runs Java.
 ENTRYPOINT []
 
+# DEBIAN_FRONTEND=noninteractive is required here: openjdk-21-jre-headless
+# pulls in tzdata, which otherwise pops an interactive timezone prompt that
+# hangs the build forever (no TTY during `docker build`). Scoped to this RUN
+# only, not left in the image's ENV.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-21-jre-headless \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openjdk-21-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

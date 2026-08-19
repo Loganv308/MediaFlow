@@ -2,11 +2,9 @@ com\loganv308\cache\PersistentCache.class
 com\loganv308\enums\JobState.class
 com\loganv308\SpaceSavingCalculator.class
 com\loganv308\Runner.class
-com\loganv308\SpaceSavingCalculator$FileEntry.class
 com\loganv308\InputStreamConsumer.class
 com\loganv308\cache\FileRecord.class
 com\loganv308\enums\Encoding.class
-com\loganv308\SpaceSavingCalculator$SavingsReport.class
 com\loganv308\FileScanner.class
 com\loganv308\Utils.class
 com\loganv308\LoggerFactory.class
